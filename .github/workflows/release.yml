@@ -1,0 +1,40 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    name: Build & attach component zip
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set version from tag in manifest
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          python - "$VERSION" <<'PY'
+          import json, sys
+          path = "custom_components/kirkhill/manifest.json"
+          manifest = json.load(open(path))
+          manifest["version"] = sys.argv[1]
+          json.dump(manifest, open(path, "w"), indent=2)
+          open(path, "a").write("\n")
+          print("manifest version set to", sys.argv[1])
+          PY
+
+      - name: Zip integration
+        run: |
+          cd custom_components/kirkhill
+          zip -r kirkhill.zip .
+
+      - name: Create release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: custom_components/kirkhill/kirkhill.zip
+          generate_release_notes: true
