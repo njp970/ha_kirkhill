@@ -76,11 +76,12 @@ A dedicated Lovelace card (`kirkhill-card`) renders the turbine map, status
 table, spinning rotor icons, and the revenue bar chart. See its repository for
 install steps.
 
-## Brands / logo
+## Icon
 
-To show an icon and logo in Home Assistant, the `kirkhill` domain needs to be
-submitted to [home-assistant/brands][brands]. This is optional and can be done
-after the first release; until then the integration uses a default icon.
+The integration ships its own brand icon in [`custom_components/kirkhill/brand/`](custom_components/kirkhill/brand/)
+(`icon.png` / `icon@2x.png`). Since Home Assistant 2026.3, custom integrations
+provide brand images this way and they take priority over the brands CDN — no
+[home-assistant/brands][brands] submission is needed.
 
 ## Development
 
