@@ -33,11 +33,13 @@
         "title": "Kirk Hill options",
         "data": {
           "scan_minutes": "Polling interval (minutes)",
-          "range": "Default range for live figures"
+          "range": "Default range for live figures",
+          "price_gbp_per_mwh": "Price (GBP per MWh)"
         },
         "data_description": {
           "scan_minutes": "How often to poll the API (1–60 minutes).",
-          "range": "Window used for the generation, turbine and wind-speed figures."
+          "range": "Window used for the generation, turbine and wind-speed figures.",
+          "price_gbp_per_mwh": "Your negotiated £/MWh price. Leave blank to disable the revenue sensors."
         }
       }
     }
@@ -64,7 +66,9 @@
       "turbine_generation": { "name": "Generation" },
       "turbine_share": { "name": "Generation share" },
       "turbine_capacity_factor": { "name": "Capacity factor" },
-      "turbine_rotor_speed": { "name": "Rotor speed" }
+      "turbine_rotor_speed": { "name": "Rotor speed" },
+      "revenue_month_to_date": { "name": "Revenue month-to-date" },
+      "revenue_year_to_date": { "name": "Revenue year-to-date" }
     },
     "binary_sensor": {
       "turbine_running": { "name": "Running" }

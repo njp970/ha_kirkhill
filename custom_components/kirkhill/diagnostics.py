@@ -34,6 +34,9 @@ async def async_get_config_entry_diagnostics(
             "summary_site": asdict(data.summary_site),
             "wind_speed_mps": data.wind_speed_mps,
             "wind_speed_at": data.wind_speed_at,
+            "price_gbp_per_mwh": data.price_gbp_per_mwh,
+            "mtd_kwh": data.mtd_kwh,
+            "ytd_series_points": len(data.ytd_series) if data.ytd_series else 0,
             "turbines": {tid: asdict(t) for tid, t in data.turbines.items()},
         },
     }

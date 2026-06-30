@@ -24,6 +24,9 @@ SCOPE_SITE = "site"
 CONF_API_KEY = "api_key"
 CONF_RANGE = "range"
 CONF_SCAN_MINUTES = "scan_minutes"
+CONF_PRICE = "price_gbp_per_mwh"
+
+CURRENCY_GBP = "GBP"
 
 DEFAULT_RANGE = "7d"
 DEFAULT_SCAN_MINUTES = 5

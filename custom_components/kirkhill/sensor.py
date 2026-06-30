@@ -5,6 +5,7 @@ from __future__ import annotations
 from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import datetime
+from typing import Any
 
 from homeassistant.components.sensor import (
     SensorDeviceClass,
@@ -27,9 +28,10 @@ from homeassistant.helpers.typing import StateType
 from homeassistant.util import dt as dt_util
 
 from .api import Turbine
-from .const import TURBINE_IDS
+from .const import CURRENCY_GBP, TURBINE_IDS
 from .coordinator import KirkhillCoordinator, KirkhillData
 from .entity import KirkhillEntity, site_device_info, turbine_device_info
+from .revenue import monthly_breakdown_from_series, revenue_gbp, ytd_total_gbp
 
 # IMPORTANT — generation modelling.
 # Generation values are WINDOWED AGGREGATES (kWh summed over the selected range),
@@ -171,6 +173,8 @@ async def async_setup_entry(
         KirkhillSiteSensor(coordinator, entry.entry_id, description)
         for description in SITE_SENSORS
     ]
+    entities.append(KirkhillRevenueMonthToDateSensor(coordinator, entry.entry_id))
+    entities.append(KirkhillRevenueYearToDateSensor(coordinator, entry.entry_id))
     for turbine_id in TURBINE_IDS:
         entities.extend(
             KirkhillTurbineSensor(coordinator, entry.entry_id, turbine_id, description)
@@ -228,3 +232,72 @@ class KirkhillTurbineSensor(KirkhillEntity, SensorEntity):
         if turbine is None:
             return None
         return self.entity_description.value_fn(turbine)
+
+
+class KirkhillRevenueSensorBase(KirkhillEntity, SensorEntity):
+    """Common config for the monetary revenue sensors (on the site device)."""
+
+    _attr_device_class = SensorDeviceClass.MONETARY
+    _attr_native_unit_of_measurement = CURRENCY_GBP
+    _attr_state_class = SensorStateClass.TOTAL
+    _attr_suggested_display_precision = 2
+
+    def __init__(self, coordinator: KirkhillCoordinator, entry_id: str) -> None:
+        super().__init__(coordinator)
+        self._attr_device_info = site_device_info(entry_id)
+
+
+class KirkhillRevenueMonthToDateSensor(KirkhillRevenueSensorBase):
+    """Earnings so far this calendar month (owner share × £/MWh)."""
+
+    _attr_translation_key = "revenue_month_to_date"
+
+    def __init__(self, coordinator: KirkhillCoordinator, entry_id: str) -> None:
+        super().__init__(coordinator, entry_id)
+        self._attr_unique_id = f"{entry_id}_revenue_month_to_date"
+
+    @property
+    def native_value(self) -> StateType:
+        data = self.coordinator.data
+        if data.price_gbp_per_mwh is None or data.mtd_kwh is None:
+            return None
+        return round(revenue_gbp(data.mtd_kwh, data.price_gbp_per_mwh), 2)
+
+
+class KirkhillRevenueYearToDateSensor(KirkhillRevenueSensorBase):
+    """Earnings year-to-date, plus a per-month breakdown attribute for the card."""
+
+    _attr_translation_key = "revenue_year_to_date"
+
+    def __init__(self, coordinator: KirkhillCoordinator, entry_id: str) -> None:
+        super().__init__(coordinator, entry_id)
+        self._attr_unique_id = f"{entry_id}_revenue_year_to_date"
+
+    @property
+    def native_value(self) -> StateType:
+        data = self.coordinator.data
+        if data.price_gbp_per_mwh is None or data.ytd_series is None:
+            return None
+        breakdown = monthly_breakdown_from_series(
+            data.ytd_series, data.price_gbp_per_mwh
+        )
+        return ytd_total_gbp(breakdown)
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any] | None:
+        data = self.coordinator.data
+        if data.price_gbp_per_mwh is None or data.ytd_series is None:
+            return None
+        breakdown = monthly_breakdown_from_series(
+            data.ytd_series, data.price_gbp_per_mwh
+        )
+        return {
+            "monthly": [
+                {
+                    "month": item.month,
+                    "generation_kwh": item.generation_kwh,
+                    "revenue_gbp": item.revenue_gbp,
+                }
+                for item in breakdown
+            ]
+        }

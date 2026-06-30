@@ -25,6 +25,7 @@ from .api import (
 from .const import (
     ALLOWED_RANGES,
     CONF_API_KEY,
+    CONF_PRICE,
     CONF_RANGE,
     CONF_SCAN_MINUTES,
     DEFAULT_RANGE,
@@ -142,6 +143,18 @@ class KirkhillOptionsFlow(OptionsFlow):
                         options=ALLOWED_RANGES,
                         translation_key="range",
                         mode=selector.SelectSelectorMode.DROPDOWN,
+                    )
+                ),
+                # Optional: leave blank to disable the revenue sensors.
+                vol.Optional(
+                    CONF_PRICE,
+                    description={"suggested_value": options.get(CONF_PRICE)},
+                ): selector.NumberSelector(
+                    selector.NumberSelectorConfig(
+                        min=0,
+                        step=0.01,
+                        mode=selector.NumberSelectorMode.BOX,
+                        unit_of_measurement="GBP/MWh",
                     )
                 ),
             }
