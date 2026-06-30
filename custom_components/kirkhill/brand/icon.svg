@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <defs>
+    <linearGradient id="g" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#F5734F"/>
+      <stop offset="1" stop-color="#D8442B"/>
+    </linearGradient>
+  </defs>
+  <rect width="512" height="512" rx="112" fill="url(#g)"/>
+
+  <!-- tower -->
+  <path d="M247 436 L252.5 232 L259.5 232 L265 436 Z" fill="#ffffff"/>
+  <!-- base pad -->
+  <rect x="228" y="432" width="56" height="15" rx="7.5" fill="#ffffff"/>
+
+  <!-- rotor: three blades + hub, centred on the nacelle -->
+  <g transform="translate(256,224)" fill="#ffffff">
+    <ellipse cx="0" cy="-94" rx="16.5" ry="94"/>
+    <g transform="rotate(120)"><ellipse cx="0" cy="-94" rx="16.5" ry="94"/></g>
+    <g transform="rotate(240)"><ellipse cx="0" cy="-94" rx="16.5" ry="94"/></g>
+    <circle r="21" fill="#C23A22"/>
+    <circle r="8.5" fill="#ffffff"/>
+  </g>
+</svg>
