@@ -1,0 +1,73 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Kirk Hill Wind Farm",
+        "description": "Enter the API key from your Kirk Hill dashboard. It is used read-only.",
+        "data": {
+          "api_key": "API key"
+        }
+      },
+      "reauth_confirm": {
+        "title": "Re-authenticate Kirk Hill",
+        "description": "Your API key was rejected. Enter a valid key to continue.",
+        "data": {
+          "api_key": "API key"
+        }
+      }
+    },
+    "error": {
+      "invalid_auth": "The API key is not valid.",
+      "cannot_connect": "Could not reach the Kirk Hill API. Check your connection and try again.",
+      "password_change_required": "Your dashboard requires a password change before API keys work. Change it on the Kirk Hill dashboard, then retry.",
+      "unknown": "An unexpected error occurred."
+    },
+    "abort": {
+      "already_configured": "Kirk Hill is already configured.",
+      "reauth_successful": "Re-authentication was successful."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Kirk Hill options",
+        "data": {
+          "scan_minutes": "Polling interval (minutes)",
+          "range": "Default range for live figures"
+        },
+        "data_description": {
+          "scan_minutes": "How often to poll the API (1–60 minutes).",
+          "range": "Window used for the generation, turbine and wind-speed figures."
+        }
+      }
+    }
+  },
+  "selector": {
+    "range": {
+      "options": {
+        "today": "Today",
+        "7d": "Last 7 days",
+        "30d": "Last 30 days"
+      }
+    }
+  },
+  "entity": {
+    "sensor": {
+      "generation_owner": { "name": "Owner generation" },
+      "generation_site": { "name": "Site generation" },
+      "capacity_factor": { "name": "Capacity factor" },
+      "active_turbines": { "name": "Active turbines" },
+      "site_capacity": { "name": "Site capacity" },
+      "import_status": { "name": "Import status" },
+      "wind_speed": { "name": "Wind speed" },
+      "latest_interval": { "name": "Latest data interval" },
+      "turbine_generation": { "name": "Generation" },
+      "turbine_share": { "name": "Generation share" },
+      "turbine_capacity_factor": { "name": "Capacity factor" },
+      "turbine_rotor_speed": { "name": "Rotor speed" }
+    },
+    "binary_sensor": {
+      "turbine_running": { "name": "Running" }
+    }
+  }
+}

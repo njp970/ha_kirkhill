@@ -26,9 +26,20 @@ CONF_RANGE = "range"
 CONF_SCAN_MINUTES = "scan_minutes"
 
 DEFAULT_RANGE = "7d"
-DEFAULT_SCAN_INTERVAL = timedelta(minutes=5)
+DEFAULT_SCAN_MINUTES = 5
+DEFAULT_SCAN_INTERVAL = timedelta(minutes=DEFAULT_SCAN_MINUTES)
+MIN_SCAN_MINUTES = 1
+MAX_SCAN_MINUTES = 60
+
+# Ranges offered in the options flow for the live (summary/turbine/wind) window.
+# Sub-day ranges are rejected by the API (302), so they are intentionally absent.
+ALLOWED_RANGES = ["today", "7d", "30d"]
 
 # Turbine ids are constrained server-side to ^T[1-8]$
 TURBINE_IDS = [f"T{i}" for i in range(1, 9)]
 
+NAME = "Kirk Hill Wind Farm"
 MANUFACTURER = "Kirk Hill Community Wind Farm"
+MODEL_SITE = "Community Wind Farm"
+MODEL_TURBINE = "Wind Turbine"
+ATTRIBUTION = "Data provided by Kirk Hill Community Wind Farm"
