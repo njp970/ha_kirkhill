@@ -8,8 +8,10 @@ integration code is written.
     export KIRKHILL_TOKEN="your-key"
     python scripts/probe_api.py
 """
+
 from __future__ import annotations
 
+import contextlib
 import json
 import os
 import sys
@@ -44,10 +46,8 @@ def call(path: str, token: str, **params: str) -> tuple[int, dict | str]:
             return resp.status, json.loads(resp.read().decode())
     except urllib.error.HTTPError as err:
         body = err.read().decode(errors="replace")
-        try:
+        with contextlib.suppress(json.JSONDecodeError):
             body = json.loads(body)
-        except json.JSONDecodeError:
-            pass
         return err.code, body
 
 
@@ -66,14 +66,17 @@ def main() -> int:
 
         data = payload.get("data", {})
         window = data.get("window", {})
-        print(f"window: range={window.get('range')} bucket={window.get('bucket')} "
-              f"scope={window.get('scope')} tz={window.get('timezone')}")
+        print(
+            f"window: range={window.get('range')} bucket={window.get('bucket')} "
+            f"scope={window.get('scope')} tz={window.get('timezone')}"
+        )
 
         if name == "summary":
             print("summary keys:", sorted(data.get("summary", {})))
         elif name in ("generation", "wind-speed"):
             series = data.get("series", [])
-            print(f"series points: {len(series)}; first: {series[0] if series else '—'}")
+            first = series[0] if series else "—"
+            print(f"series points: {len(series)}; first: {first}")
         elif name == "turbines":
             turbines = data.get("turbines", [])
             print(f"turbines: {len(turbines)} -> ids {[t['id'] for t in turbines]}")

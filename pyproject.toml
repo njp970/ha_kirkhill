@@ -1,0 +1,16 @@
+[tool.pytest.ini_options]
+# Repo root on sys.path so `custom_components.kirkhill` imports as a namespace
+# package (matching how Home Assistant loads custom_components).
+pythonpath = ["."]
+testpaths = ["tests"]
+asyncio_mode = "auto"
+
+[tool.ruff]
+target-version = "py313"
+line-length = 88
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "UP", "B", "ASYNC", "C4", "SIM"]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/*" = ["E501"]

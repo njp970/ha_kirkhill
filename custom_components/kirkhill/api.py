@@ -1,17 +1,23 @@
 """Async client for the Kirk Hill Wind Farm API.
 
-First draft against the real OpenAPI schema. Claude Code will add tests and
-refine error handling in Phase 1.
-
 The API is read-only. Auth is `Authorization: Bearer <key>`; keys only work on
 `/api/v1/*`. All response timestamps are UTC ISO-8601. Generation values are
-WINDOWED AGGREGATES (kWh over the requested range), NOT a live meter — see
-sensor modelling notes.
+WINDOWED AGGREGATES (kWh over the requested range), NOT a live meter — see the
+sensor modelling notes in the integration.
+
+Notes learned against the live API (Phase 0):
+- Cloudflare fronts the dashboard and returns 403 "error code: 1010" for the
+  default aiohttp/urllib User-Agent. We always send an explicit `User-Agent`.
+- Valid `range` values are `today`, `7d`, `30d`, a 4-digit year, or `custom`
+  (with `from`/`to`). An invalid range (e.g. a sub-day `24h`) is answered with a
+  302 redirect to the dashboard, not a 422 — we disable redirects and surface
+  that as a validation error.
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Any
+from typing import Any, TypedDict
 
 import aiohttp
 
@@ -25,6 +31,8 @@ from .const import (
     SCOPE_OWNER,
     USER_AGENT,
 )
+
+DEFAULT_TIMEOUT = aiohttp.ClientTimeout(total=30)
 
 
 class KirkhillError(Exception):
@@ -40,15 +48,34 @@ class KirkhillPasswordChangeRequired(KirkhillError):
 
 
 class KirkhillValidationError(KirkhillError):
-    """422 — invalid range or timestamp parameters."""
+    """422 (or an invalid-range 3xx redirect) — bad range/timestamp params."""
 
 
 class KirkhillApiError(KirkhillError):
-    """Other non-2xx or transport error."""
+    """Other non-2xx response or a transport/decode error."""
+
+
+# --- Typed response models -------------------------------------------------
+
+
+class GenerationPoint(TypedDict):
+    """One point in a `/generation` series."""
+
+    timestamp: str
+    generation_kwh: float
+
+
+class WindSpeedPoint(TypedDict):
+    """One point in a `/wind-speed` series."""
+
+    timestamp: str
+    wind_speed_mps: float
 
 
 @dataclass(slots=True)
 class Window:
+    """The resolved query window echoed by every endpoint."""
+
     range: str
     from_: str
     to: str
@@ -57,7 +84,7 @@ class Window:
     timezone: str
 
     @classmethod
-    def from_dict(cls, d: dict[str, Any]) -> "Window":
+    def from_dict(cls, d: dict[str, Any]) -> Window:
         return cls(
             range=d["range"],
             from_=d["from"],
@@ -70,6 +97,8 @@ class Window:
 
 @dataclass(slots=True)
 class Summary:
+    """Scoped totals block (shared by `/summary` and `/generation`)."""
+
     total_generation_kwh: float
     capacity_factor_percent: float | None
     active_turbines: int
@@ -78,7 +107,7 @@ class Summary:
     latest_import_status: str | None
 
     @classmethod
-    def from_dict(cls, d: dict[str, Any]) -> "Summary":
+    def from_dict(cls, d: dict[str, Any]) -> Summary:
         return cls(
             total_generation_kwh=d["total_generation_kwh"],
             capacity_factor_percent=d.get("capacity_factor_percent"),
@@ -91,13 +120,16 @@ class Summary:
 
 @dataclass(slots=True)
 class Coordinates:
+    """Turbine location; every field is nullable in the API."""
+
     latitude: float | None
     longitude: float | None
     source: str | None
     openstreetmap_node_id: int | None
 
     @classmethod
-    def from_dict(cls, d: dict[str, Any]) -> "Coordinates":
+    def from_dict(cls, d: dict[str, Any] | None) -> Coordinates:
+        d = d or {}
         return cls(
             latitude=d.get("latitude"),
             longitude=d.get("longitude"),
@@ -108,6 +140,8 @@ class Coordinates:
 
 @dataclass(slots=True)
 class Turbine:
+    """A single turbine (ids are server-constrained to ^T[1-8]$)."""
+
     id: str
     generation_kwh: float
     generation_share_percent: float | None
@@ -119,16 +153,16 @@ class Turbine:
 
     @property
     def is_running(self) -> bool | None:
-        """Derived status: no explicit field exists in the API.
+        """Derived status — there is NO explicit status field in the API.
 
-        running if rotor speed > 0; stopped if 0; unknown if null.
+        running if rotor speed > 0; stopped if 0; unknown (None) if rpm is null.
         """
         if self.latest_rotor_speed_rpm is None:
             return None
         return self.latest_rotor_speed_rpm > 0
 
     @classmethod
-    def from_dict(cls, d: dict[str, Any]) -> "Turbine":
+    def from_dict(cls, d: dict[str, Any]) -> Turbine:
         return cls(
             id=d["id"],
             generation_kwh=d["generation_kwh"],
@@ -137,12 +171,40 @@ class Turbine:
             latest_generation_interval_end=d.get("latest_generation_interval_end"),
             latest_rotor_speed_rpm=d.get("latest_rotor_speed_rpm"),
             latest_rotor_speed_at=d.get("latest_rotor_speed_at"),
-            coordinates=Coordinates.from_dict(d.get("coordinates", {})),
+            coordinates=Coordinates.from_dict(d.get("coordinates")),
         )
 
 
+@dataclass(slots=True)
+class SummaryResult:
+    window: Window
+    summary: Summary
+
+
+@dataclass(slots=True)
+class GenerationResult:
+    window: Window
+    summary: Summary
+    series: list[GenerationPoint]
+
+
+@dataclass(slots=True)
+class WindSpeedResult:
+    window: Window
+    series: list[WindSpeedPoint]
+
+
+@dataclass(slots=True)
+class TurbinesResult:
+    window: Window
+    turbines: list[Turbine]
+
+
+# --- Client ----------------------------------------------------------------
+
+
 class KirkhillClient:
-    """Thin async wrapper over the read-only endpoints."""
+    """Thin async wrapper over the read-only `/api/v1` endpoints."""
 
     def __init__(
         self,
@@ -151,11 +213,13 @@ class KirkhillClient:
         *,
         base_url: str = BASE_URL,
         default_range: str = DEFAULT_RANGE,
+        timeout: aiohttp.ClientTimeout = DEFAULT_TIMEOUT,
     ) -> None:
         self._api_key = api_key
         self._session = session
         self._base_url = base_url.rstrip("/")
         self._default_range = default_range
+        self._timeout = timeout
 
     @property
     def _headers(self) -> dict[str, str]:
@@ -165,54 +229,141 @@ class KirkhillClient:
             "User-Agent": USER_AGENT,
         }
 
-    async def _get(self, path: str, **params: str) -> dict[str, Any]:
-        query = {"range": self._default_range, **params}
+    async def _get(
+        self,
+        path: str,
+        *,
+        scope: str | None = None,
+        range_: str | None = None,
+        date_from: str | None = None,
+        date_to: str | None = None,
+    ) -> dict[str, Any]:
+        """GET an endpoint and return its `data` object, raising typed errors."""
+        params: dict[str, str] = {"range": range_ or self._default_range}
+        if scope is not None:
+            params["scope"] = scope
+        if date_from is not None:
+            params["from"] = date_from
+        if date_to is not None:
+            params["to"] = date_to
+
         url = f"{self._base_url}{path}"
         try:
+            # allow_redirects=False: an invalid range 302-redirects to the
+            # dashboard HTML instead of returning a 4xx; we treat that as a
+            # validation error rather than letting it resolve to junk HTML.
             async with self._session.get(
-                url, headers=self._headers, params=query
+                url,
+                headers=self._headers,
+                params=params,
+                timeout=self._timeout,
+                allow_redirects=False,
             ) as resp:
-                if resp.status == 401:
-                    raise KirkhillAuthError("Missing, invalid, or revoked API key.")
-                if resp.status == 423:
+                status = resp.status
+                if status == 401:
+                    raise KirkhillAuthError(
+                        await _message(resp, "Missing, invalid, or revoked API key.")
+                    )
+                if status == 423:
                     raise KirkhillPasswordChangeRequired(
-                        "Change your dashboard password before using API keys."
+                        await _message(
+                            resp,
+                            "Change your dashboard password before using API keys.",
+                        )
                     )
-                if resp.status == 422:
+                if status == 422:
                     raise KirkhillValidationError(
-                        "Invalid range or timestamp parameters."
+                        await _message(resp, "Invalid range or timestamp parameters.")
                     )
-                if resp.status != 200:
-                    text = await resp.text()
-                    raise KirkhillApiError(f"HTTP {resp.status}: {text[:200]}")
-                body = await resp.json()
-        except aiohttp.ClientError as err:
-            raise KirkhillApiError(str(err)) from err
+                if 300 <= status < 400:
+                    raise KirkhillValidationError(
+                        f"Unexpected redirect (HTTP {status}) — usually an "
+                        f"invalid 'range' value: {params['range']!r}."
+                    )
+                if status != 200:
+                    raise KirkhillApiError(
+                        await _message(resp, f"Unexpected HTTP {status}.")
+                    )
+                try:
+                    body = await resp.json()
+                except (aiohttp.ContentTypeError, ValueError) as err:
+                    raise KirkhillApiError(f"Malformed JSON response: {err}") from err
+        except (TimeoutError, aiohttp.ClientError) as err:
+            raise KirkhillApiError(f"Request to {path} failed: {err}") from err
 
-        if "data" not in body:
+        if not isinstance(body, dict) or "data" not in body:
             raise KirkhillApiError("Malformed response: missing 'data'.")
         return body["data"]
 
-    async def async_get_summary(self, scope: str = SCOPE_OWNER) -> tuple[Window, Summary]:
-        data = await self._get(ENDPOINT_SUMMARY, scope=scope)
-        return Window.from_dict(data["window"]), Summary.from_dict(data["summary"])
-
-    async def async_get_generation(
-        self, scope: str = SCOPE_OWNER
-    ) -> tuple[Window, Summary, list[dict[str, Any]]]:
-        data = await self._get(ENDPOINT_GENERATION, scope=scope)
-        return (
-            Window.from_dict(data["window"]),
-            Summary.from_dict(data["summary"]),
-            data.get("series", []),
+    async def async_get_summary(
+        self,
+        scope: str = SCOPE_OWNER,
+        *,
+        range_: str | None = None,
+        date_from: str | None = None,
+        date_to: str | None = None,
+    ) -> SummaryResult:
+        data = await self._get(
+            ENDPOINT_SUMMARY,
+            scope=scope,
+            range_=range_,
+            date_from=date_from,
+            date_to=date_to,
+        )
+        return SummaryResult(
+            window=Window.from_dict(data["window"]),
+            summary=Summary.from_dict(data["summary"]),
         )
 
-    async def async_get_wind_speed(self) -> tuple[Window, list[dict[str, Any]]]:
-        # scope does not affect wind speed; omit it.
-        data = await self._get(ENDPOINT_WIND_SPEED)
-        return Window.from_dict(data["window"]), data.get("series", [])
+    async def async_get_generation(
+        self,
+        scope: str = SCOPE_OWNER,
+        *,
+        range_: str | None = None,
+        date_from: str | None = None,
+        date_to: str | None = None,
+    ) -> GenerationResult:
+        data = await self._get(
+            ENDPOINT_GENERATION,
+            scope=scope,
+            range_=range_,
+            date_from=date_from,
+            date_to=date_to,
+        )
+        return GenerationResult(
+            window=Window.from_dict(data["window"]),
+            summary=Summary.from_dict(data["summary"]),
+            series=data.get("series", []),
+        )
 
-    async def async_get_turbines(self, scope: str = SCOPE_OWNER) -> tuple[Window, list[Turbine]]:
-        data = await self._get(ENDPOINT_TURBINES, scope=scope)
-        turbines = [Turbine.from_dict(t) for t in data.get("turbines", [])]
-        return Window.from_dict(data["window"]), turbines
+    async def async_get_wind_speed(
+        self, *, range_: str | None = None
+    ) -> WindSpeedResult:
+        # scope does not affect wind speed; omit it.
+        data = await self._get(ENDPOINT_WIND_SPEED, range_=range_)
+        return WindSpeedResult(
+            window=Window.from_dict(data["window"]),
+            series=data.get("series", []),
+        )
+
+    async def async_get_turbines(
+        self, scope: str = SCOPE_OWNER, *, range_: str | None = None
+    ) -> TurbinesResult:
+        data = await self._get(ENDPOINT_TURBINES, scope=scope, range_=range_)
+        return TurbinesResult(
+            window=Window.from_dict(data["window"]),
+            turbines=[Turbine.from_dict(t) for t in data.get("turbines", [])],
+        )
+
+
+async def _message(resp: aiohttp.ClientResponse, fallback: str) -> str:
+    """Best-effort extraction of the API's `{"message": ...}` error text."""
+    try:
+        body = await resp.json()
+    except (aiohttp.ClientError, ValueError):
+        return fallback
+    if isinstance(body, dict):
+        msg = body.get("message")
+        if isinstance(msg, str) and msg:
+            return msg
+    return fallback

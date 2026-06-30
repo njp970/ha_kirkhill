@@ -1,0 +1,9 @@
+# Test-only dependencies for the standalone API-client unit tests.
+# (Home Assistant itself needs Python 3.13; the api/revenue modules under test
+# have no homeassistant imports, so these run on any supported Python.)
+# aioresponses 0.7.x doesn't yet support aiohttp 3.13's ClientResponse change,
+# so pin below 3.13 for the test mock only. (HA provides aiohttp at runtime.)
+aiohttp>=3.11,<3.13
+aioresponses>=0.7.6
+pytest>=7.4
+pytest-asyncio>=0.23

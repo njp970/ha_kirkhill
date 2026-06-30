@@ -9,21 +9,22 @@ All API timestamps are UTC ISO-8601. Month/year boundaries below are computed in
 UTC for simplicity; if you later want them aligned to Europe/London calendar
 days (matching the dashboard's named ranges), swap in a tz-aware "now".
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 KWH_PER_MWH = 1000.0
 
 
 def _utc_now() -> datetime:
-    return datetime.now(timezone.utc)
+    return datetime.now(UTC)
 
 
 def iso_z(dt: datetime) -> str:
     """ISO-8601 with a trailing Z, as the API expects for custom ranges."""
-    return dt.astimezone(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+    return dt.astimezone(UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
 
 
 def month_to_date_bounds(now: datetime | None = None) -> tuple[str, str]:
@@ -42,7 +43,7 @@ def revenue_gbp(generation_kwh: float, price_gbp_per_mwh: float) -> float:
 class MonthlyRevenue:
     """One bar in the year-to-date chart."""
 
-    month: int          # 1-12
+    month: int  # 1-12
     generation_kwh: float
     revenue_gbp: float
 
@@ -63,7 +64,7 @@ def monthly_breakdown_from_series(
     future months come back as zero so the card can render a full 12-bar axis.
     """
     year = year or _utc_now().year
-    kwh_by_month: dict[int, float] = {m: 0.0 for m in range(1, 13)}
+    kwh_by_month: dict[int, float] = dict.fromkeys(range(1, 13), 0.0)
 
     for point in series:
         ts = point.get("timestamp")
