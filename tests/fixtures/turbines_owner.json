@@ -1,0 +1,134 @@
+{
+    "data": {
+        "window": {
+            "range": "today",
+            "from": "2026-06-29T23:00:00Z",
+            "to": "2026-06-30T10:19:00Z",
+            "bucket": "1m",
+            "scope": "owner",
+            "timezone": "Europe/London"
+        },
+        "turbines": [
+            {
+                "id": "T1",
+                "generation_kwh": 1.34,
+                "generation_share_percent": 19.03,
+                "capacity_factor_percent": 39.75,
+                "latest_generation_interval_end": "2026-06-30T10:03:00Z",
+                "latest_rotor_speed_rpm": 16.14,
+                "latest_rotor_speed_at": "2026-06-30T10:03:00Z",
+                "coordinates": {
+                    "latitude": 55.3047599,
+                    "longitude": -4.7458191,
+                    "source": "OpenStreetMap",
+                    "openstreetmap_node_id": 12134002376
+                }
+            },
+            {
+                "id": "T2",
+                "generation_kwh": 1.098,
+                "generation_share_percent": 15.6,
+                "capacity_factor_percent": 32.58,
+                "latest_generation_interval_end": "2026-06-30T10:03:00Z",
+                "latest_rotor_speed_rpm": 15.32,
+                "latest_rotor_speed_at": "2026-06-30T10:03:00Z",
+                "coordinates": {
+                    "latitude": 55.303443,
+                    "longitude": -4.7420997,
+                    "source": "OpenStreetMap",
+                    "openstreetmap_node_id": 12134002371
+                }
+            },
+            {
+                "id": "T3",
+                "generation_kwh": 1.033,
+                "generation_share_percent": 14.68,
+                "capacity_factor_percent": 30.66,
+                "latest_generation_interval_end": "2026-06-30T10:03:00Z",
+                "latest_rotor_speed_rpm": 16.07,
+                "latest_rotor_speed_at": "2026-06-30T10:03:00Z",
+                "coordinates": {
+                    "latitude": 55.3049494,
+                    "longitude": -4.7367824,
+                    "source": "OpenStreetMap",
+                    "openstreetmap_node_id": 12134002369
+                }
+            },
+            {
+                "id": "T4",
+                "generation_kwh": 1.086,
+                "generation_share_percent": 15.43,
+                "capacity_factor_percent": 32.23,
+                "latest_generation_interval_end": "2026-06-30T10:03:00Z",
+                "latest_rotor_speed_rpm": 16.68,
+                "latest_rotor_speed_at": "2026-06-30T10:03:00Z",
+                "coordinates": {
+                    "latitude": 55.3068568,
+                    "longitude": -4.7402025,
+                    "source": "OpenStreetMap",
+                    "openstreetmap_node_id": 12134002370
+                }
+            },
+            {
+                "id": "T5",
+                "generation_kwh": 0.825,
+                "generation_share_percent": 11.72,
+                "capacity_factor_percent": 24.48,
+                "latest_generation_interval_end": "2026-06-30T10:03:00Z",
+                "latest_rotor_speed_rpm": 15.83,
+                "latest_rotor_speed_at": "2026-06-30T10:03:00Z",
+                "coordinates": {
+                    "latitude": 55.3080298,
+                    "longitude": -4.7327078,
+                    "source": "OpenStreetMap",
+                    "openstreetmap_node_id": 12134002374
+                }
+            },
+            {
+                "id": "T6",
+                "generation_kwh": 0.627,
+                "generation_share_percent": 8.91,
+                "capacity_factor_percent": 18.61,
+                "latest_generation_interval_end": "2026-06-30T10:04:00Z",
+                "latest_rotor_speed_rpm": 11.93,
+                "latest_rotor_speed_at": "2026-06-30T10:02:00Z",
+                "coordinates": {
+                    "latitude": 55.310133,
+                    "longitude": -4.7385376,
+                    "source": "OpenStreetMap",
+                    "openstreetmap_node_id": 12134002372
+                }
+            },
+            {
+                "id": "T7",
+                "generation_kwh": 0.444,
+                "generation_share_percent": 6.31,
+                "capacity_factor_percent": 13.18,
+                "latest_generation_interval_end": "2026-06-30T10:03:00Z",
+                "latest_rotor_speed_rpm": 14.09,
+                "latest_rotor_speed_at": "2026-06-30T10:02:00Z",
+                "coordinates": {
+                    "latitude": 55.3117174,
+                    "longitude": -4.7421111,
+                    "source": "OpenStreetMap",
+                    "openstreetmap_node_id": 12134002373
+                }
+            },
+            {
+                "id": "T8",
+                "generation_kwh": 0.585,
+                "generation_share_percent": 8.31,
+                "capacity_factor_percent": 17.36,
+                "latest_generation_interval_end": "2026-06-30T10:03:00Z",
+                "latest_rotor_speed_rpm": 14.81,
+                "latest_rotor_speed_at": "2026-06-30T10:02:00Z",
+                "coordinates": {
+                    "latitude": 55.3160163,
+                    "longitude": -4.7403217,
+                    "source": "OpenStreetMap",
+                    "openstreetmap_node_id": 12134002375
+                }
+            }
+        ]
+    }
+}

@@ -1,0 +1,20 @@
+{
+    "data": {
+        "window": {
+            "range": "today",
+            "from": "2026-06-29T23:00:00Z",
+            "to": "2026-06-30T10:19:00Z",
+            "bucket": "1m",
+            "scope": "site",
+            "timezone": "Europe/London"
+        },
+        "summary": {
+            "total_generation_kwh": 55544,
+            "capacity_factor_percent": 26.11,
+            "active_turbines": 8,
+            "site_capacity_watts": 18800000,
+            "latest_generation_interval_end": "2026-06-30T10:04:00Z",
+            "latest_import_status": "success"
+        }
+    }
+}

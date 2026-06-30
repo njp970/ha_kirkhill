@@ -1,0 +1,30 @@
+# macOS
+.DS_Store
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+.venv/
+venv/
+env/
+
+# Secrets / local env
+.env
+*.token
+secrets.*
+
+# Node / card build (Phase 4)
+node_modules/
+dist/
+*.tsbuildinfo
+
+# Editor
+.idea/
+.vscode/
