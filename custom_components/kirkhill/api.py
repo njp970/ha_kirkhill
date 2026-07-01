@@ -74,24 +74,28 @@ class WindSpeedPoint(TypedDict):
 
 @dataclass(slots=True)
 class Window:
-    """The resolved query window echoed by every endpoint."""
+    """The resolved query window echoed by every endpoint.
 
-    range: str
-    from_: str
-    to: str
-    bucket: str
-    scope: str
-    timezone: str
+    All fields use ``.get`` — the API has removed fields before (e.g. dropped
+    ``timezone`` in mid-2026), and a missing field must never crash a poll.
+    """
+
+    range: str | None
+    from_: str | None
+    to: str | None
+    bucket: str | None
+    scope: str | None
+    timezone: str | None
 
     @classmethod
     def from_dict(cls, d: dict[str, Any]) -> Window:
         return cls(
-            range=d["range"],
-            from_=d["from"],
-            to=d["to"],
-            bucket=d["bucket"],
-            scope=d["scope"],
-            timezone=d["timezone"],
+            range=d.get("range"),
+            from_=d.get("from"),
+            to=d.get("to"),
+            bucket=d.get("bucket"),
+            scope=d.get("scope"),
+            timezone=d.get("timezone"),
         )
 
 
@@ -99,20 +103,22 @@ class Window:
 class Summary:
     """Scoped totals block (shared by `/summary` and `/generation`)."""
 
-    total_generation_kwh: float
+    total_generation_kwh: float | None
     capacity_factor_percent: float | None
-    active_turbines: int
-    site_capacity_watts: int
+    active_turbines: int | None
+    site_capacity_watts: int | None
     latest_generation_interval_end: str | None
     latest_import_status: str | None
 
     @classmethod
     def from_dict(cls, d: dict[str, Any]) -> Summary:
+        # Tolerant parsing: a missing field surfaces as None (entity unavailable)
+        # rather than crashing the whole coordinator refresh.
         return cls(
-            total_generation_kwh=d["total_generation_kwh"],
+            total_generation_kwh=d.get("total_generation_kwh"),
             capacity_factor_percent=d.get("capacity_factor_percent"),
-            active_turbines=d["active_turbines"],
-            site_capacity_watts=d["site_capacity_watts"],
+            active_turbines=d.get("active_turbines"),
+            site_capacity_watts=d.get("site_capacity_watts"),
             latest_generation_interval_end=d.get("latest_generation_interval_end"),
             latest_import_status=d.get("latest_import_status"),
         )
@@ -143,7 +149,7 @@ class Turbine:
     """A single turbine (ids are server-constrained to ^T[1-8]$)."""
 
     id: str
-    generation_kwh: float
+    generation_kwh: float | None
     generation_share_percent: float | None
     capacity_factor_percent: float | None
     latest_generation_interval_end: str | None
@@ -164,8 +170,8 @@ class Turbine:
     @classmethod
     def from_dict(cls, d: dict[str, Any]) -> Turbine:
         return cls(
-            id=d["id"],
-            generation_kwh=d["generation_kwh"],
+            id=d.get("id", ""),
+            generation_kwh=d.get("generation_kwh"),
             generation_share_percent=d.get("generation_share_percent"),
             capacity_factor_percent=d.get("capacity_factor_percent"),
             latest_generation_interval_end=d.get("latest_generation_interval_end"),
@@ -311,8 +317,8 @@ class KirkhillClient:
             date_to=date_to,
         )
         return SummaryResult(
-            window=Window.from_dict(data["window"]),
-            summary=Summary.from_dict(data["summary"]),
+            window=Window.from_dict(data.get("window", {})),
+            summary=Summary.from_dict(data.get("summary", {})),
         )
 
     async def async_get_generation(
@@ -331,8 +337,8 @@ class KirkhillClient:
             date_to=date_to,
         )
         return GenerationResult(
-            window=Window.from_dict(data["window"]),
-            summary=Summary.from_dict(data["summary"]),
+            window=Window.from_dict(data.get("window", {})),
+            summary=Summary.from_dict(data.get("summary", {})),
             series=data.get("series", []),
         )
 
@@ -342,7 +348,7 @@ class KirkhillClient:
         # scope does not affect wind speed; omit it.
         data = await self._get(ENDPOINT_WIND_SPEED, range_=range_)
         return WindSpeedResult(
-            window=Window.from_dict(data["window"]),
+            window=Window.from_dict(data.get("window", {})),
             series=data.get("series", []),
         )
 
@@ -351,7 +357,7 @@ class KirkhillClient:
     ) -> TurbinesResult:
         data = await self._get(ENDPOINT_TURBINES, scope=scope, range_=range_)
         return TurbinesResult(
-            window=Window.from_dict(data["window"]),
+            window=Window.from_dict(data.get("window", {})),
             turbines=[Turbine.from_dict(t) for t in data.get("turbines", [])],
         )
 

@@ -58,6 +58,20 @@ async def test_summary_owner_parsing(client, fixture):
     assert result.window.timezone == "Europe/London"
 
 
+async def test_missing_window_field_does_not_crash(client, fixture):
+    # Regression: the API dropped `window.timezone` in mid-2026. A missing field
+    # must degrade gracefully (None), never raise KeyError and kill the poll.
+    payload = fixture("summary_owner.json")
+    del payload["data"]["window"]["timezone"]
+    with aioresponses() as m:
+        m.get(url_re("/api/v1/summary"), payload=payload)
+        result = await client.async_get_summary()
+
+    assert result.window.timezone is None
+    assert result.window.bucket == "1m"
+    assert result.summary.total_generation_kwh == 7.041
+
+
 async def test_summary_site_parsing(client, fixture):
     with aioresponses() as m:
         m.get(url_re("/api/v1/summary"), payload=fixture("summary_site.json"))
