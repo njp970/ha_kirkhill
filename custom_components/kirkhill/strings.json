@@ -57,6 +57,8 @@
     "sensor": {
       "generation_owner": { "name": "Owner generation" },
       "generation_site": { "name": "Site generation" },
+      "owner_power": { "name": "Owner power" },
+      "site_power": { "name": "Site power" },
       "capacity_factor": { "name": "Capacity factor" },
       "active_turbines": { "name": "Active turbines" },
       "site_capacity": { "name": "Site capacity" },

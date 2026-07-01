@@ -1,7 +1,9 @@
 {
   "domain": "kirkhill",
   "name": "Kirk Hill Wind Farm",
-  "codeowners": ["@njp970"],
+  "codeowners": [
+    "@njp970"
+  ],
   "config_flow": true,
   "documentation": "https://github.com/njp970/ha_kirkhill",
   "integration_type": "hub",
@@ -9,5 +11,5 @@
   "issue_tracker": "https://github.com/njp970/ha_kirkhill/issues",
   "requirements": [],
   "single_config_entry": true,
-  "version": "0.1.0"
+  "version": "0.2.0"
 }

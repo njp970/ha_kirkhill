@@ -79,6 +79,22 @@ SITE_SENSORS: tuple[KirkhillSiteSensorDescription, ...] = (
         value_fn=lambda d: d.summary_site.total_generation_kwh,
     ),
     KirkhillSiteSensorDescription(
+        key="owner_power",
+        translation_key="owner_power",
+        device_class=SensorDeviceClass.POWER,
+        native_unit_of_measurement=UnitOfPower.WATT,
+        state_class=SensorStateClass.MEASUREMENT,
+        value_fn=lambda d: d.owner_power_w,
+    ),
+    KirkhillSiteSensorDescription(
+        key="site_power",
+        translation_key="site_power",
+        device_class=SensorDeviceClass.POWER,
+        native_unit_of_measurement=UnitOfPower.WATT,
+        state_class=SensorStateClass.MEASUREMENT,
+        value_fn=lambda d: d.site_power_w,
+    ),
+    KirkhillSiteSensorDescription(
         key="capacity_factor",
         translation_key="capacity_factor",
         native_unit_of_measurement=PERCENTAGE,

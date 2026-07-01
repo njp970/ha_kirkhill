@@ -10,8 +10,8 @@ from homeassistant.helpers import entity_registry as er
 
 from custom_components.kirkhill.api import KirkhillAuthError
 
-# 8 site sensors + 2 revenue sensors + (4 sensors * 8 turbines) + 8 binary_sensors
-EXPECTED_ENTITIES = 8 + 2 + 32 + 8
+# 10 site sensors (incl. 2 power) + 2 revenue + (4 sensors * 8 turbines) + 8 binary
+EXPECTED_ENTITIES = 10 + 2 + 32 + 8
 # 1 site device + 8 turbine devices
 EXPECTED_DEVICES = 9
 
@@ -52,6 +52,13 @@ async def test_entity_values_and_modelling(
     assert t1.state == STATE_ON
     assert t1.attributes["openstreetmap_node_id"] == 12134002376
     assert t1.attributes["latitude"] is not None
+
+    # Live power sensor: derived from today's latest interval, reported in W.
+    power = hass.states.get("sensor.kirk_hill_wind_farm_owner_power")
+    assert power is not None
+    assert power.attributes["device_class"] == "power"
+    assert power.attributes["unit_of_measurement"] == "W"
+    assert float(power.state) >= 0
 
 
 async def test_unload(hass: HomeAssistant, mock_client, mock_entry) -> None:

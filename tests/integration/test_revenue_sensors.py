@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from homeassistant.core import HomeAssistant
+from homeassistant.util import dt as dt_util
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from custom_components.kirkhill.const import CONF_API_KEY, CONF_PRICE, DOMAIN, NAME
@@ -21,8 +22,11 @@ async def test_revenue_unknown_without_price(
     ytd = hass.states.get(YTD)
     assert ytd.state == "unknown"
     assert "monthly" not in ytd.attributes
-    # No price -> the heavier YTD year-series call is skipped entirely.
-    mock_client.async_get_generation.assert_not_called()
+    # No price -> the month-to-date summary (range=custom) is never requested.
+    assert not any(
+        call.kwargs.get("range_") == "custom"
+        for call in mock_client.async_get_summary.await_args_list
+    )
 
 
 async def test_revenue_with_price(hass: HomeAssistant, mock_client) -> None:
@@ -48,4 +52,9 @@ async def test_revenue_with_price(hass: HomeAssistant, mock_client) -> None:
     monthly = ytd.attributes["monthly"]
     assert len(monthly) == 12
     assert {"month", "generation_kwh", "revenue_gbp"} <= set(monthly[0])
-    mock_client.async_get_generation.assert_called_once()
+    # The YTD year-series was requested (range_ = the current year).
+    year = str(dt_util.utcnow().year)
+    assert any(
+        call.kwargs.get("range_") == year
+        for call in mock_client.async_get_generation.await_args_list
+    )
