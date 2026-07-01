@@ -28,3 +28,6 @@ dist/
 # Editor
 .idea/
 .vscode/
+
+# Local session handover (dev-only, contains local paths)
+HANDOVER.md
