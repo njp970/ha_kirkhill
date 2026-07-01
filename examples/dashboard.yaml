@@ -139,6 +139,23 @@ views:
             icon_color: green
             entity: sensor.kirk_hill_wind_farm_owner_generation
           - type: custom:mushroom-template-card
+            primary: Your output (live)
+            secondary: >-
+              {% set v = states('sensor.kirk_hill_wind_farm_owner_power') %}
+              {{ '%.0f W'|format(v|float) if v not in ['unknown','unavailable'] else '—' }}
+            icon: mdi:flash
+            icon_color: amber
+            entity: sensor.kirk_hill_wind_farm_owner_power
+          - type: custom:mushroom-template-card
+            primary: Capacity factor
+            secondary: >-
+              {% set cf = states('sensor.kirk_hill_wind_farm_capacity_factor') %}
+              {% set n = states('sensor.kirk_hill_wind_farm_active_turbines') %}
+              {{ '%.1f%%'|format(cf|float) if cf not in ['unknown','unavailable'] else '—' }} · {{ n }} active turbines
+            icon: mdi:gauge
+            icon_color: green
+            entity: sensor.kirk_hill_wind_farm_capacity_factor
+          - type: custom:mushroom-template-card
             primary: Earnings this month
             secondary: >-
               {% set v = states('sensor.kirk_hill_wind_farm_revenue_month_to_date') %}
