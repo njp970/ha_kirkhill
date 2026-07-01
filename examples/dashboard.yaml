@@ -139,6 +139,14 @@ views:
             icon_color: green
             entity: sensor.kirk_hill_wind_farm_owner_generation
           - type: custom:mushroom-template-card
+            primary: Generation (today)
+            secondary: >-
+              {% set v = states('sensor.kirk_hill_wind_farm_owner_generation_today') %}
+              {{ '%.1f kWh'|format(v|float) if v not in ['unknown','unavailable'] else '—' }}
+            icon: mdi:calendar-today
+            icon_color: green
+            entity: sensor.kirk_hill_wind_farm_owner_generation_today
+          - type: custom:mushroom-template-card
             primary: Your output (live)
             secondary: >-
               {% set v = states('sensor.kirk_hill_wind_farm_owner_power') %}
@@ -146,15 +154,6 @@ views:
             icon: mdi:flash
             icon_color: amber
             entity: sensor.kirk_hill_wind_farm_owner_power
-          - type: custom:mushroom-template-card
-            primary: Capacity factor
-            secondary: >-
-              {% set cf = states('sensor.kirk_hill_wind_farm_capacity_factor') %}
-              {% set n = states('sensor.kirk_hill_wind_farm_active_turbines') %}
-              {{ '%.1f%%'|format(cf|float) if cf not in ['unknown','unavailable'] else '—' }} · {{ n }} active turbines
-            icon: mdi:gauge
-            icon_color: green
-            entity: sensor.kirk_hill_wind_farm_capacity_factor
           - type: custom:mushroom-template-card
             primary: Earnings this month
             secondary: >-
@@ -183,6 +182,14 @@ views:
             icon: mdi:factory
             icon_color: indigo
             entity: sensor.kirk_hill_wind_farm_site_generation
+          - type: custom:mushroom-template-card
+            primary: Site output (live)
+            secondary: >-
+              {% set v = states('sensor.kirk_hill_wind_farm_site_power') %}
+              {{ '{:,.1f} kW'.format(v|float / 1000) if v not in ['unknown','unavailable'] else '—' }}
+            icon: mdi:flash
+            icon_color: amber
+            entity: sensor.kirk_hill_wind_farm_site_power
           - type: grid
             columns: 2
             square: false
