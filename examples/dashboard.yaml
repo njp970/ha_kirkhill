@@ -1,0 +1,290 @@
+# Kirk Hill Wind Farm — standalone Home Assistant dashboard
+#
+# A ready-made dashboard for the Kirk Hill Wind Farm integration: turbine map,
+# your-share + whole-site generation, gauges, per-turbine status and a
+# year-to-date revenue chart.
+#
+# Requirements (all installable via HACS):
+#   - Integration:  Kirk Hill Wind Farm   https://github.com/njp970/ha_kirkhill
+#   - Card:         kirkhill-card          https://github.com/njp970/kirkhill-card
+#   - Mushroom      (lovelace-mushroom)
+#   - ApexCharts Card (apexcharts-card)
+#   (the gauge, map and heading cards are built in)
+#
+# Entity IDs below assume the integration's default names
+# (sensor.kirk_hill_wind_farm_*, binary_sensor.turbine_t1_running, ...). If you
+# renamed devices/entities, update the ids and the card's turbine_prefix /
+# site_prefix options.
+#
+# How to use: Settings -> Dashboards -> Add dashboard -> "New dashboard from
+# scratch" -> open it -> top-right pencil (Edit) -> three-dot menu ->
+# "Raw configuration editor" -> paste this whole file -> Save.
+
+title: Kirk Hill Wind Farm
+views:
+  - title: Wind Farm
+    path: wind-farm
+    icon: mdi:wind-turbine
+    type: sections
+    max_columns: 2
+    sections:
+
+      # ---- full-width header ----
+      - type: grid
+        column_span: 2
+        cards:
+          - type: custom:mushroom-title-card
+            title: "🌬️ Kirk Hill Wind Farm"
+            subtitle: "Your community wind-farm share — live generation, turbines and earnings."
+          - type: custom:mushroom-chips-card
+            alignment: start
+            chips:
+              - type: template
+                icon: mdi:wind-turbine
+                icon_color: blue
+                content: "{{ states('sensor.kirk_hill_wind_farm_active_turbines') }} / 8 active"
+                tap_action:
+                  action: more-info
+                  entity: sensor.kirk_hill_wind_farm_active_turbines
+              - type: template
+                icon: mdi:weather-windy
+                icon_color: cyan
+                content: >-
+                  {% set v = states('sensor.kirk_hill_wind_farm_wind_speed') %}
+                  {{ '%.1f m/s'|format(v|float) if v not in ['unknown','unavailable'] else '—' }}
+                tap_action:
+                  action: more-info
+                  entity: sensor.kirk_hill_wind_farm_wind_speed
+              - type: template
+                icon: mdi:gauge
+                icon_color: green
+                content: >-
+                  {% set v = states('sensor.kirk_hill_wind_farm_capacity_factor') %}
+                  {{ '%.1f%%'|format(v|float) if v not in ['unknown','unavailable'] else '—' }}
+                tap_action:
+                  action: more-info
+                  entity: sensor.kirk_hill_wind_farm_capacity_factor
+              - type: template
+                icon: mdi:database-import
+                icon_color: grey
+                content: "{{ states('sensor.kirk_hill_wind_farm_import_status') }}"
+              - type: entity
+                entity: sensor.kirk_hill_wind_farm_latest_data_interval
+                icon: mdi:clock-outline
+
+      # ================= LEFT: map + revenue chart =================
+      - type: grid
+        cards:
+          - type: heading
+            heading: "🗺️ Turbine map"
+            heading_style: title
+          - type: custom:kirkhill-card
+            title: ""
+            map_style: voyager
+            panels:
+              - map
+          - type: heading
+            heading: "📈 Revenue by month (year to date)"
+            heading_style: title
+          - type: custom:apexcharts-card
+            graph_span: 1y
+            span:
+              start: year
+            header:
+              show: false
+            apex_config:
+              chart:
+                height: 220
+              dataLabels:
+                enabled: false
+              plotOptions:
+                bar:
+                  columnWidth: 55%
+                  borderRadius: 3
+              xaxis:
+                labels:
+                  format: MMM
+            yaxis:
+              - min: 0
+                decimals: 0
+                apex_config:
+                  title:
+                    text: GBP
+            series:
+              - entity: sensor.kirk_hill_wind_farm_revenue_year_to_date
+                name: Revenue
+                type: column
+                color: "#2e7d32"
+                data_generator: |
+                  const m = entity.attributes.monthly || [];
+                  const y = new Date().getFullYear();
+                  return m.map((it) => [new Date(y, it.month - 1, 1).getTime(), it.revenue_gbp]);
+
+      # ================= RIGHT: share, site, turbines =================
+      - type: grid
+        cards:
+          - type: heading
+            heading: "💷 Your share"
+            heading_style: title
+          - type: custom:mushroom-template-card
+            primary: Generation (last 7 days)
+            secondary: >-
+              {% set v = states('sensor.kirk_hill_wind_farm_owner_generation') %}
+              {{ '%.1f kWh'|format(v|float) if v not in ['unknown','unavailable'] else '—' }}
+            icon: mdi:transmission-tower-export
+            icon_color: green
+            entity: sensor.kirk_hill_wind_farm_owner_generation
+          - type: custom:mushroom-template-card
+            primary: Earnings this month
+            secondary: >-
+              {% set v = states('sensor.kirk_hill_wind_farm_revenue_month_to_date') %}
+              {{ '£%.2f'|format(v|float) if v not in ['unknown','unavailable'] else 'Set a price' }}
+            icon: mdi:cash
+            icon_color: teal
+            entity: sensor.kirk_hill_wind_farm_revenue_month_to_date
+          - type: custom:mushroom-template-card
+            primary: Earnings this year
+            secondary: >-
+              {% set v = states('sensor.kirk_hill_wind_farm_revenue_year_to_date') %}
+              {{ '£%.2f'|format(v|float) if v not in ['unknown','unavailable'] else 'Set a price' }}
+            icon: mdi:cash-multiple
+            icon_color: teal
+            entity: sensor.kirk_hill_wind_farm_revenue_year_to_date
+
+          - type: heading
+            heading: "🏭 Whole site"
+            heading_style: title
+          - type: custom:mushroom-template-card
+            primary: Site generation (last 7 days)
+            secondary: >-
+              {% set v = states('sensor.kirk_hill_wind_farm_site_generation') %}
+              {{ '{:,.0f} kWh'.format(v|float) if v not in ['unknown','unavailable'] else '—' }}
+            icon: mdi:factory
+            icon_color: indigo
+            entity: sensor.kirk_hill_wind_farm_site_generation
+          - type: grid
+            columns: 2
+            square: false
+            cards:
+              - type: gauge
+                entity: sensor.kirk_hill_wind_farm_capacity_factor
+                name: Capacity factor
+                unit: "%"
+                min: 0
+                max: 100
+                needle: true
+                severity:
+                  red: 0
+                  yellow: 15
+                  green: 30
+              - type: gauge
+                entity: sensor.kirk_hill_wind_farm_wind_speed
+                name: Wind speed
+                unit: m/s
+                min: 0
+                max: 30
+                needle: true
+
+          - type: heading
+            heading: "⚙️ Turbines"
+            heading_style: title
+          - type: grid
+            columns: 2
+            square: false
+            cards:
+              - type: custom:mushroom-template-card
+                primary: T1
+                secondary: >-
+                  {{ '%.0f'|format(states('sensor.turbine_t1_rotor_speed')|float(0)) }} rpm ·
+                  {{ '%.0f'|format(states('sensor.turbine_t1_generation_share')|float(0)) }}%
+                icon: mdi:wind-turbine
+                icon_color: >-
+                  {% set st = states('binary_sensor.turbine_t1_running') %}
+                  {{ 'green' if st == 'on' else ('grey' if st == 'off' else 'amber') }}
+                entity: binary_sensor.turbine_t1_running
+                tap_action:
+                  action: more-info
+              - type: custom:mushroom-template-card
+                primary: T2
+                secondary: >-
+                  {{ '%.0f'|format(states('sensor.turbine_t2_rotor_speed')|float(0)) }} rpm ·
+                  {{ '%.0f'|format(states('sensor.turbine_t2_generation_share')|float(0)) }}%
+                icon: mdi:wind-turbine
+                icon_color: >-
+                  {% set st = states('binary_sensor.turbine_t2_running') %}
+                  {{ 'green' if st == 'on' else ('grey' if st == 'off' else 'amber') }}
+                entity: binary_sensor.turbine_t2_running
+                tap_action:
+                  action: more-info
+              - type: custom:mushroom-template-card
+                primary: T3
+                secondary: >-
+                  {{ '%.0f'|format(states('sensor.turbine_t3_rotor_speed')|float(0)) }} rpm ·
+                  {{ '%.0f'|format(states('sensor.turbine_t3_generation_share')|float(0)) }}%
+                icon: mdi:wind-turbine
+                icon_color: >-
+                  {% set st = states('binary_sensor.turbine_t3_running') %}
+                  {{ 'green' if st == 'on' else ('grey' if st == 'off' else 'amber') }}
+                entity: binary_sensor.turbine_t3_running
+                tap_action:
+                  action: more-info
+              - type: custom:mushroom-template-card
+                primary: T4
+                secondary: >-
+                  {{ '%.0f'|format(states('sensor.turbine_t4_rotor_speed')|float(0)) }} rpm ·
+                  {{ '%.0f'|format(states('sensor.turbine_t4_generation_share')|float(0)) }}%
+                icon: mdi:wind-turbine
+                icon_color: >-
+                  {% set st = states('binary_sensor.turbine_t4_running') %}
+                  {{ 'green' if st == 'on' else ('grey' if st == 'off' else 'amber') }}
+                entity: binary_sensor.turbine_t4_running
+                tap_action:
+                  action: more-info
+              - type: custom:mushroom-template-card
+                primary: T5
+                secondary: >-
+                  {{ '%.0f'|format(states('sensor.turbine_t5_rotor_speed')|float(0)) }} rpm ·
+                  {{ '%.0f'|format(states('sensor.turbine_t5_generation_share')|float(0)) }}%
+                icon: mdi:wind-turbine
+                icon_color: >-
+                  {% set st = states('binary_sensor.turbine_t5_running') %}
+                  {{ 'green' if st == 'on' else ('grey' if st == 'off' else 'amber') }}
+                entity: binary_sensor.turbine_t5_running
+                tap_action:
+                  action: more-info
+              - type: custom:mushroom-template-card
+                primary: T6
+                secondary: >-
+                  {{ '%.0f'|format(states('sensor.turbine_t6_rotor_speed')|float(0)) }} rpm ·
+                  {{ '%.0f'|format(states('sensor.turbine_t6_generation_share')|float(0)) }}%
+                icon: mdi:wind-turbine
+                icon_color: >-
+                  {% set st = states('binary_sensor.turbine_t6_running') %}
+                  {{ 'green' if st == 'on' else ('grey' if st == 'off' else 'amber') }}
+                entity: binary_sensor.turbine_t6_running
+                tap_action:
+                  action: more-info
+              - type: custom:mushroom-template-card
+                primary: T7
+                secondary: >-
+                  {{ '%.0f'|format(states('sensor.turbine_t7_rotor_speed')|float(0)) }} rpm ·
+                  {{ '%.0f'|format(states('sensor.turbine_t7_generation_share')|float(0)) }}%
+                icon: mdi:wind-turbine
+                icon_color: >-
+                  {% set st = states('binary_sensor.turbine_t7_running') %}
+                  {{ 'green' if st == 'on' else ('grey' if st == 'off' else 'amber') }}
+                entity: binary_sensor.turbine_t7_running
+                tap_action:
+                  action: more-info
+              - type: custom:mushroom-template-card
+                primary: T8
+                secondary: >-
+                  {{ '%.0f'|format(states('sensor.turbine_t8_rotor_speed')|float(0)) }} rpm ·
+                  {{ '%.0f'|format(states('sensor.turbine_t8_generation_share')|float(0)) }}%
+                icon: mdi:wind-turbine
+                icon_color: >-
+                  {% set st = states('binary_sensor.turbine_t8_running') %}
+                  {{ 'green' if st == 'on' else ('grey' if st == 'off' else 'amber') }}
+                entity: binary_sensor.turbine_t8_running
+                tap_action:
+                  action: more-info

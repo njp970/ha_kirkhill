@@ -76,6 +76,18 @@ A dedicated Lovelace card (`kirkhill-card`) renders the turbine map, status
 table, spinning rotor icons, and the revenue bar chart. See its repository for
 install steps.
 
+## Example dashboard
+
+A ready-made dashboard lives in [`examples/dashboard.yaml`](examples/dashboard.yaml)
+— turbine map, your-share and whole-site figures, gauges, per-turbine status, and
+a year-to-date revenue chart. It uses [Mushroom](https://github.com/piitaya/lovelace-mushroom),
+[ApexCharts](https://github.com/RomRider/apexcharts-card) and the
+[kirkhill-card](https://github.com/njp970/kirkhill-card) (all installable via HACS).
+
+To use it: **Settings → Dashboards → Add dashboard → New dashboard from scratch**,
+open it, then **⋮ → Edit dashboard → ⋮ → Raw configuration editor**, and paste the
+file. Entity IDs assume the integration's default names.
+
 ## Icon
 
 The integration ships its own brand icon in [`custom_components/kirkhill/brand/`](custom_components/kirkhill/brand/)
