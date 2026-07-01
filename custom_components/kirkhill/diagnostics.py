@@ -36,6 +36,7 @@ async def async_get_config_entry_diagnostics(
             "wind_speed_at": data.wind_speed_at,
             "owner_power_w": data.owner_power_w,
             "site_power_w": data.site_power_w,
+            "owner_today_kwh": data.owner_today_kwh,
             "price_gbp_per_mwh": data.price_gbp_per_mwh,
             "mtd_kwh": data.mtd_kwh,
             "ytd_series_points": len(data.ytd_series) if data.ytd_series else 0,

@@ -71,6 +71,14 @@ SITE_SENSORS: tuple[KirkhillSiteSensorDescription, ...] = (
         value_fn=lambda d: d.summary_owner.total_generation_kwh,
     ),
     KirkhillSiteSensorDescription(
+        key="generation_today",
+        translation_key="generation_today",
+        device_class=SensorDeviceClass.ENERGY,
+        native_unit_of_measurement=UnitOfEnergy.KILO_WATT_HOUR,
+        state_class=_GENERATION_STATE_CLASS,  # windowed aggregate — see note above
+        value_fn=lambda d: d.owner_today_kwh,
+    ),
+    KirkhillSiteSensorDescription(
         key="generation_site",
         translation_key="generation_site",
         device_class=SensorDeviceClass.ENERGY,

@@ -73,10 +73,11 @@ class KirkhillData:
     window: Window
     wind_speed_mps: float | None
     wind_speed_at: str | None
-    # Live power (W), derived from today's latest 1-minute interval. None on a
-    # transient fetch failure.
+    # Live power (W), derived from today's latest 1-minute interval, plus the
+    # owner's total generation so far today (kWh). None on a transient failure.
     owner_power_w: float | None
     site_power_w: float | None
+    owner_today_kwh: float | None
     # Revenue inputs (price-independent; sensors apply the £/MWh price). None
     # when no price is configured or a revenue fetch failed transiently.
     price_gbp_per_mwh: float | None
@@ -137,7 +138,7 @@ class KirkhillCoordinator(DataUpdateCoordinator[KirkhillData]):
             # Validation / transport / unexpected status — retry next interval.
             raise UpdateFailed(str(err)) from err
 
-        owner_power_w, site_power_w = await self._async_fetch_power()
+        owner_power_w, site_power_w, owner_today_kwh = await self._async_fetch_power()
 
         price = self._price
         mtd_kwh, ytd_series = await self._async_fetch_revenue(price)
@@ -152,17 +153,20 @@ class KirkhillCoordinator(DataUpdateCoordinator[KirkhillData]):
             wind_speed_at=latest.get("timestamp") if latest else None,
             owner_power_w=owner_power_w,
             site_power_w=site_power_w,
+            owner_today_kwh=owner_today_kwh,
             price_gbp_per_mwh=price,
             mtd_kwh=mtd_kwh,
             ytd_series=ytd_series,
         )
 
-    async def _async_fetch_power(self) -> tuple[float | None, float | None]:
-        """Current owner + site power (W), from today's latest 1-minute interval.
+    async def _async_fetch_power(
+        self,
+    ) -> tuple[float | None, float | None, float | None]:
+        """Live owner + site power (W) and owner generation-so-far-today (kWh).
 
         Uses `range=today` (finest bucket) regardless of the display range so the
-        figure is always "now". Transient errors degrade to None; auth errors
-        propagate to reauth.
+        figures are always "now"/"today". Transient errors degrade to None; auth
+        errors propagate to reauth.
         """
         try:
             owner_gen, site_gen = await asyncio.gather(
@@ -172,9 +176,13 @@ class KirkhillCoordinator(DataUpdateCoordinator[KirkhillData]):
         except (KirkhillAuthError, KirkhillPasswordChangeRequired) as err:
             raise ConfigEntryAuthFailed(str(err)) from err
         except KirkhillError as err:
-            _LOGGER.warning("Power fetch failed (power sensors unknown): %s", err)
-            return None, None
-        return _interval_power_w(owner_gen), _interval_power_w(site_gen)
+            _LOGGER.warning("Power fetch failed (power/today sensors unknown): %s", err)
+            return None, None, None
+        return (
+            _interval_power_w(owner_gen),
+            _interval_power_w(site_gen),
+            owner_gen.summary.total_generation_kwh,
+        )
 
     async def _async_fetch_revenue(
         self, price: float | None

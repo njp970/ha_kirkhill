@@ -56,6 +56,7 @@
   "entity": {
     "sensor": {
       "generation_owner": { "name": "Owner generation" },
+      "generation_today": { "name": "Owner generation today" },
       "generation_site": { "name": "Site generation" },
       "owner_power": { "name": "Owner power" },
       "site_power": { "name": "Site power" },

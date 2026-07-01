@@ -10,8 +10,8 @@ from homeassistant.helpers import entity_registry as er
 
 from custom_components.kirkhill.api import KirkhillAuthError
 
-# 10 site sensors (incl. 2 power) + 2 revenue + (4 sensors * 8 turbines) + 8 binary
-EXPECTED_ENTITIES = 10 + 2 + 32 + 8
+# 11 site sensors (incl. 2 power + today) + 2 revenue + (4*8 turbine) + 8 binary
+EXPECTED_ENTITIES = 11 + 2 + 32 + 8
 # 1 site device + 8 turbine devices
 EXPECTED_DEVICES = 9
 
