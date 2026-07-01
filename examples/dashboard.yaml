@@ -19,6 +19,10 @@
 # How to use: Settings -> Dashboards -> Add dashboard -> "New dashboard from
 # scratch" -> open it -> top-right pencil (Edit) -> three-dot menu ->
 # "Raw configuration editor" -> paste this whole file -> Save.
+#
+# Prefer it as a tab in a dashboard you already have? Instead of the whole
+# file, paste just the "- title: Wind Farm" view block (everything under
+# "views:") into your existing dashboard's own "views:" list.
 
 title: Kirk Hill Wind Farm
 views:
