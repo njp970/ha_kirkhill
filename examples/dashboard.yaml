@@ -44,6 +44,16 @@ views:
             alignment: start
             chips:
               - type: template
+                icon: >-
+                  {{ 'mdi:check-circle' if states('sensor.kirk_hill_wind_farm_owner_generation') not in ['unavailable','unknown','none'] else 'mdi:alert-circle' }}
+                icon_color: >-
+                  {{ 'green' if states('sensor.kirk_hill_wind_farm_owner_generation') not in ['unavailable','unknown','none'] else 'red' }}
+                content: >-
+                  {{ 'Live' if states('sensor.kirk_hill_wind_farm_owner_generation') not in ['unavailable','unknown','none'] else 'No data' }}
+                tap_action:
+                  action: more-info
+                  entity: sensor.kirk_hill_wind_farm_latest_data_interval
+              - type: template
                 icon: mdi:wind-turbine
                 icon_color: blue
                 content: "{{ states('sensor.kirk_hill_wind_farm_active_turbines') }} / 8 active"
