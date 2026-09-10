@@ -13,7 +13,9 @@ from custom_components.kirkhill.api import (
     KirkhillApiError,
     KirkhillAuthError,
     KirkhillClient,
+    KirkhillError,
     KirkhillPasswordChangeRequired,
+    KirkhillRateLimitError,
     KirkhillValidationError,
     Turbine,
 )
@@ -224,6 +226,52 @@ async def test_redirect_maps_to_validation_error(client):
         m.get(url_re("/api/v1/summary"), status=302, headers={"Location": BASE})
         with pytest.raises(KirkhillValidationError, match="redirect"):
             await client.async_get_summary(range_="24h")
+
+
+async def test_429_maps_to_rate_limit_error(client):
+    """The API rate limits per account (120/min) — 429 must be its own error.
+
+    Before this it fell through to the generic KirkhillApiError, so the
+    coordinator could not tell 'slow down' apart from 'the server is broken'.
+    """
+    with aioresponses() as m:
+        m.get(
+            url_re("/api/v1/summary"),
+            status=429,
+            headers={"Retry-After": "30"},
+            payload={"message": "Too Many Requests"},
+        )
+        with pytest.raises(
+            KirkhillRateLimitError, match="Too Many Requests"
+        ) as excinfo:
+            await client.async_get_summary()
+
+    assert excinfo.value.retry_after == 30
+
+
+@pytest.mark.parametrize(
+    "header",
+    [
+        None,  # header absent entirely
+        "Wed, 21 Oct 2026 07:28:00 GMT",  # HTTP-date form we deliberately skip
+        "not-a-number",
+        "-5",
+    ],
+)
+async def test_429_without_usable_retry_after(client, header):
+    """An unusable Retry-After degrades to None rather than a bogus backoff."""
+    headers = {} if header is None else {"Retry-After": header}
+    with aioresponses() as m:
+        m.get(url_re("/api/v1/summary"), status=429, headers=headers, body="nope")
+        with pytest.raises(KirkhillRateLimitError) as excinfo:
+            await client.async_get_summary()
+
+    assert excinfo.value.retry_after is None
+
+
+async def test_rate_limit_error_is_a_kirkhill_error(client):
+    """Callers that catch the base class must keep absorbing 429s."""
+    assert issubclass(KirkhillRateLimitError, KirkhillError)
 
 
 async def test_missing_data_key_maps_to_api_error(client):

@@ -34,6 +34,7 @@ import urllib.parse
 import urllib.request
 
 BASE = "https://dashboard.kirkhillcoop.org"
+DOCS = f"{BASE}/api-docs"  # Swagger UI; the authoritative endpoint list.
 # Cloudflare in front of the dashboard blocks the default "Python-urllib/x"
 # User-Agent with a 403 (error code 1010). Send an explicit UA so requests pass.
 USER_AGENT = "ha-kirkhill/0.1 (+https://github.com/neilparkes/ha_kirkhill)"
@@ -91,6 +92,13 @@ KNOWN_RANGES = ["today", "7d", "30d"]
 CANDIDATE_RANGES = ["1h", "24h", "yesterday", "mtd", "ytd", "12m", "all"]
 KNOWN_SCOPES = ["owner", "site"]
 CANDIDATE_SCOPES = ["turbine", "all", "member"]
+
+# Documented at /api-docs but NOT wired into the integration. Probed so a run
+# keeps reporting them until they are either used or consciously dismissed.
+UNUSED_ENDPOINTS = {
+    "current": "live readings — would replace deriving power from the today series",
+    "carbon-avoided": "indicative CO2 avoided — no sensors for this at all",
+}
 
 # Endpoint names worth probing for; a non-404 means something new exists.
 CANDIDATE_ENDPOINTS = [
@@ -220,6 +228,23 @@ def check_buckets(token: str, findings: list[str]) -> None:
             )
 
 
+def _shape(value, depth: int = 0):
+    """Summarise a payload as field-name -> type, so shapes can be read at a glance.
+
+    Long series are collapsed to their first element: the point of this is the
+    field names, not thousands of readings.
+    """
+    if depth > 4:
+        return "..."
+    if isinstance(value, dict):
+        return {k: _shape(v, depth + 1) for k, v in value.items()}
+    if isinstance(value, list):
+        if not value:
+            return []
+        return [_shape(value[0], depth + 1), f"...({len(value)} items)"]
+    return type(value).__name__
+
+
 def _verdict(status: int) -> str:
     """Describe a probe result, keeping 'unreachable' distinct from 'rejected'.
 
@@ -250,6 +275,18 @@ def check_extras(token: str, findings: list[str]) -> None:
         if status == 200:
             findings.append(f"NEW      scope={scope!r} is now accepted")
 
+    print("\n== documented but unused endpoints ==")
+    for name, why in UNUSED_ENDPOINTS.items():
+        path = f"{API_PREFIX}/{name}"
+        status, payload = call(path, token, range="today", scope="owner")
+        print(f"  {path}: {_verdict(status)}")
+        if status != 200:
+            continue
+        findings.append(f"UNUSED   {path} — {why}")
+        # Print the shape so the fields can be modelled without guesswork.
+        if isinstance(payload, dict):
+            print(f"    shape: {json.dumps(_shape(payload), indent=6)[:1200]}")
+
     print("\n== candidate endpoints ==")
     for name in CANDIDATE_ENDPOINTS:
         path = f"{API_PREFIX}/{name}"
@@ -257,6 +294,11 @@ def check_extras(token: str, findings: list[str]) -> None:
         # 404 = absent. 401/423 are key problems, not evidence of an endpoint.
         if status in (0, 404, 401, 423):
             continue
+        if status == 429:
+            findings.append(
+                "ERROR    rate limited (429) mid-probe — results are incomplete"
+            )
+            break
         print(f"  {path}: HTTP {status}")
         if status == 200:
             findings.append(f"NEW      endpoint {path} exists and returns 200")

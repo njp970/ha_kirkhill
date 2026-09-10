@@ -26,6 +26,7 @@ from .api import (
     KirkhillClient,
     KirkhillError,
     KirkhillPasswordChangeRequired,
+    KirkhillRateLimitError,
     Summary,
     Turbine,
     Window,
@@ -50,6 +51,13 @@ YTD_REFRESH_INTERVAL = timedelta(hours=1)
 # Map a window bucket to its length in minutes, for turning the latest interval's
 # energy (kWh) into an average power (W) — the same trick the dashboard uses.
 _BUCKET_MINUTES = {"1m": 1, "10m": 10, "1h": 60, "day": 1440}
+
+
+def _retry_hint(err: KirkhillRateLimitError) -> str:
+    """Render the server's Retry-After for a log line, or nothing if absent."""
+    if err.retry_after is None:
+        return ""
+    return f" (retry after {err.retry_after}s)"
 
 
 def _interval_power_w(result: GenerationResult) -> float | None:
@@ -133,6 +141,14 @@ class KirkhillCoordinator(DataUpdateCoordinator[KirkhillData]):
             # 423 — keys won't work until the dashboard password is changed.
             raise ConfigEntryAuthFailed(
                 f"Change your Kirk Hill dashboard password, then reconfigure: {err}"
+            ) from err
+        except KirkhillRateLimitError as err:
+            # 429 — the budget is per account and shared across every key on it,
+            # so this can be someone else's traffic. Say so, because the obvious
+            # fix (lengthen *this* poll interval) may not be the right one.
+            raise UpdateFailed(
+                f"Rate limited by the Kirk Hill API{_retry_hint(err)}. The limit "
+                f"is per account and shared across all of its API keys."
             ) from err
         except KirkhillError as err:
             # Validation / transport / unexpected status — retry next interval.
