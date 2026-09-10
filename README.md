@@ -100,9 +100,33 @@ provide brand images this way and they take priority over the brands CDN — no
 ```bash
 uv venv --python 3.13 .venv
 VIRTUAL_ENV=.venv uv pip install -r requirements-test.txt
-.venv/bin/python -m pytest -q      # 37 tests
+.venv/bin/python -m pytest -q      # 48 tests
 uvx ruff check . && uvx ruff format --check .
 ```
+
+### Checking the API for drift
+
+The API is undocumented and has changed under us before — it silently dropped
+`window.timezone` in mid-2026, which broke every entity until v0.2.2. To check
+whether it has gained or lost anything since:
+
+```bash
+export KIRKHILL_TOKEN="your-api-key"
+python scripts/probe_api.py
+```
+
+It compares the live responses against the shapes in `api.py` and reports:
+
+- **NEW** fields, ranges, scopes or endpoints the integration doesn't use yet —
+  these are the candidate features to wire up.
+- **MISSING** fields the API no longer returns. Parsing is tolerant so these
+  degrade to `unknown` rather than crashing, but the affected entities are dead.
+- The **bucket** each range resolves to. Any bucket missing from
+  `coordinator._BUCKET_MINUTES` makes the power sensors silently scale wrong.
+
+It exits non-zero when it finds drift, so it can be run on a schedule.
+`tests/test_probe_contract.py` keeps the script's expectations tied to the real
+dataclasses, so the checker can't quietly go stale.
 
 [kirkhill]: https://dashboard.kirkhillcoop.org
 [brands]: https://github.com/home-assistant/brands
