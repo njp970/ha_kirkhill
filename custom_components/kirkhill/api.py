@@ -51,6 +51,20 @@ class KirkhillValidationError(KirkhillError):
     """422 (or an invalid-range 3xx redirect) — bad range/timestamp params."""
 
 
+class KirkhillRateLimitError(KirkhillError):
+    """429 — the account's request budget is spent.
+
+    The limit is per *account* (120/min by default) and shared across every API
+    key on it, so a poll can be throttled by something else entirely: a second
+    Home Assistant, the companion card, or a script. ``retry_after`` carries the
+    server's ``Retry-After`` header in seconds when it sends a usable one.
+    """
+
+    def __init__(self, message: str, retry_after: int | None = None) -> None:
+        super().__init__(message)
+        self.retry_after = retry_after
+
+
 class KirkhillApiError(KirkhillError):
     """Other non-2xx response or a transport/decode error."""
 
@@ -281,6 +295,11 @@ class KirkhillClient:
                     raise KirkhillValidationError(
                         await _message(resp, "Invalid range or timestamp parameters.")
                     )
+                if status == 429:
+                    raise KirkhillRateLimitError(
+                        await _message(resp, "Rate limited by the Kirk Hill API."),
+                        _retry_after(resp),
+                    )
                 if 300 <= status < 400:
                     raise KirkhillValidationError(
                         f"Unexpected redirect (HTTP {status}) — usually an "
@@ -360,6 +379,23 @@ class KirkhillClient:
             window=Window.from_dict(data.get("window", {})),
             turbines=[Turbine.from_dict(t) for t in data.get("turbines", [])],
         )
+
+
+def _retry_after(resp: aiohttp.ClientResponse) -> int | None:
+    """Parse `Retry-After` as delay-seconds, ignoring anything unusable.
+
+    The spec also allows an HTTP-date. We don't attempt that: a bad guess at a
+    backoff is worse than none, and the coordinator falls back to its normal
+    poll interval when this is None.
+    """
+    raw = resp.headers.get("Retry-After")
+    if raw is None:
+        return None
+    try:
+        seconds = int(raw.strip())
+    except ValueError:
+        return None
+    return seconds if seconds >= 0 else None
 
 
 async def _message(resp: aiohttp.ClientResponse, fallback: str) -> str:

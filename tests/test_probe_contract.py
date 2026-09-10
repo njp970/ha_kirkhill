@@ -101,3 +101,41 @@ def test_candidate_values_are_not_already_known(probe):
     assert not set(probe.CANDIDATE_SCOPES) & set(probe.KNOWN_SCOPES)
     known_names = {p.rsplit("/", 1)[-1] for p in probe.ENDPOINTS.values()}
     assert not set(probe.CANDIDATE_ENDPOINTS) & known_names
+
+
+def test_unused_endpoints_are_not_already_wired_up(probe):
+    """Once an endpoint is actually used, drop it from UNUSED_ENDPOINTS.
+
+    Otherwise every run reports it as an unused feature forever.
+    """
+    known_names = {p.rsplit("/", 1)[-1] for p in probe.ENDPOINTS.values()}
+    assert not set(probe.UNUSED_ENDPOINTS) & known_names
+    assert not set(probe.UNUSED_ENDPOINTS) & set(probe.CANDIDATE_ENDPOINTS)
+
+
+def test_shape_summarises_without_dumping_series(probe):
+    """A 1440-point series must collapse, or the output is unreadable."""
+    payload = {
+        "data": {
+            "window": {"range": "today", "bucket": "1m"},
+            "series": [{"timestamp": "2026-01-01T00:00:00Z", "generation_kwh": 0.1}]
+            * 1440,
+        }
+    }
+    shape = probe._shape(payload)
+    assert shape["data"]["window"] == {"range": "str", "bucket": "str"}
+    assert shape["data"]["series"] == [
+        {"timestamp": "str", "generation_kwh": "float"},
+        "...(1440 items)",
+    ]
+
+
+def test_shape_handles_empty_and_null(probe):
+    assert probe._shape({"a": [], "b": None}) == {"a": [], "b": "NoneType"}
+
+
+def test_verdict_distinguishes_unreachable_from_rejected(probe):
+    """A firewalled run must not read as the API answering 'no'."""
+    assert probe._verdict(0) == "unreachable (no response)"
+    assert probe._verdict(200) == "accepted"
+    assert "rejected" in probe._verdict(422)

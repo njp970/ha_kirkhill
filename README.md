@@ -54,7 +54,7 @@ After adding the integration, open its **Configure** dialog to set:
 
 | Option | Default | Notes |
 | --- | --- | --- |
-| Polling interval | 5 min | 1–60 minutes |
+| Polling interval | 5 min | 1–60 minutes. Each refresh makes 6–8 requests; the API allows 120/min **per account**, shared across every key on it. |
 | Default range | `7d` | `today`, `7d`, or `30d` for the live figures |
 | Price (GBP per MWh) | _unset_ | Your negotiated price. Leave blank to disable revenue sensors. |
 
@@ -100,7 +100,7 @@ provide brand images this way and they take priority over the brands CDN — no
 ```bash
 uv venv --python 3.13 .venv
 VIRTUAL_ENV=.venv uv pip install -r requirements-test.txt
-.venv/bin/python -m pytest -q      # 48 tests
+.venv/bin/python -m pytest -q      # 58 tests
 uvx ruff check . && uvx ruff format --check .
 ```
 
@@ -119,6 +119,10 @@ It compares the live responses against the shapes in `api.py` and reports:
 
 - **NEW** fields, ranges, scopes or endpoints the integration doesn't use yet —
   these are the candidate features to wire up.
+- **UNUSED** endpoints that [the API docs](https://dashboard.kirkhillcoop.org/api-docs)
+  document but the integration never calls, printed with their field shapes so
+  they can be modelled without guessing (currently `/current` and
+  `/carbon-avoided`).
 - **MISSING** fields the API no longer returns. Parsing is tolerant so these
   degrade to `unknown` rather than crashing, but the affected entities are dead.
 - The **bucket** each range resolves to. Any bucket missing from
