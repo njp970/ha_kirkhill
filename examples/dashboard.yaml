@@ -6,7 +6,7 @@
 #
 # Requirements (all installable via HACS):
 #   - Integration:  Kirk Hill Wind Farm   https://github.com/njp970/ha_kirkhill
-#   - Card:         kirkhill-card          https://github.com/njp970/kirkhill-card
+#   - Card:         kirkhill-card v0.3.0+  https://github.com/njp970/kirkhill-card
 #   - Mushroom      (lovelace-mushroom)
 #   - ApexCharts Card (apexcharts-card)
 #   (the gauge, map and heading cards are built in)
@@ -92,6 +92,9 @@ views:
           - type: heading
             heading: "🗺️ Turbine map"
             heading_style: title
+          # Map tiles come from Home Assistant's built-in tile proxy (HA 2026.9+).
+          # On older HA, or for CARTO's own styles, add a free CARTO key:
+          #   map_key: YOUR_KEY   (https://carto.com/basemaps/apikey/)
           - type: custom:kirkhill-card
             title: ""
             map_style: voyager
