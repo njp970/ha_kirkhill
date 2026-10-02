@@ -219,6 +219,9 @@ class CurrentSummary:
 @dataclass(slots=True)
 class CurrentResult:
     summary: CurrentSummary
+    # When the server computed the reading; its local date is the "today" that
+    # `total_generation_kwh_today` covers.
+    generated_at: str | None
 
 
 @dataclass(slots=True)
@@ -400,7 +403,10 @@ class KirkhillClient:
     async def async_get_current(self, scope: str = SCOPE_OWNER) -> CurrentResult:
         """Live power and generation-so-far-today for one scope."""
         data = await self._get(ENDPOINT_CURRENT, scope=scope)
-        return CurrentResult(summary=CurrentSummary.from_dict(data.get("summary", {})))
+        return CurrentResult(
+            summary=CurrentSummary.from_dict(data.get("summary", {})),
+            generated_at=(data.get("reading") or {}).get("generated_at"),
+        )
 
     async def async_get_turbines(
         self, scope: str = SCOPE_OWNER, *, range_: str | None = None

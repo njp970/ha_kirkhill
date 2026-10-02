@@ -43,8 +43,11 @@ async def test_entity_values_and_modelling(
     assert owner_gen is not None
     assert float(owner_gen.state) == 30.283
     # CRITICAL: must be a measurement, never total_increasing.
+    # Windowed aggregate: measurement, and no energy device class (HA rejects
+    # energy + measurement, and a sliding window is not a total).
     assert owner_gen.attributes["state_class"] == "measurement"
-    assert owner_gen.attributes["device_class"] == "energy"
+    assert "device_class" not in owner_gen.attributes
+    assert owner_gen.attributes["unit_of_measurement"] == "kWh"
 
     # T1 is running (rpm 16.14 > 0) and exposes coordinates for the card.
     t1 = hass.states.get("binary_sensor.turbine_t1_running")
@@ -61,8 +64,13 @@ async def test_entity_values_and_modelling(
     assert float(power.state) == 1910.525
     site_power = hass.states.get("sensor.kirk_hill_wind_farm_site_power")
     assert float(site_power.state) == 15072000
+    # Generation today is a daily meter: energy / total, reset at site midnight
+    # of the day the API computed it in (generated_at 2026-10-02T20:23:48Z).
     today = hass.states.get("sensor.kirk_hill_wind_farm_owner_generation_today")
     assert float(today.state) == 30.283
+    assert today.attributes["device_class"] == "energy"
+    assert today.attributes["state_class"] == "total"
+    assert today.attributes["last_reset"] == "2026-10-02T00:00:00+01:00"
 
     co2 = hass.states.get("sensor.kirk_hill_wind_farm_owner_co2_avoided")
     assert float(co2.state) == 3.196
@@ -108,3 +116,13 @@ async def test_auth_error_triggers_reauth(
         if flow["context"].get("source") == "reauth"
     ]
     assert len(flows) == 1
+
+
+async def test_no_invalid_state_class_warnings(
+    hass: HomeAssistant, mock_client, mock_entry, caplog
+) -> None:
+    """HA warns when a device class is paired with an impossible state class."""
+    assert await hass.config_entries.async_setup(mock_entry.entry_id)
+    await hass.async_block_till_done()
+
+    assert "is using state class" not in caplog.text

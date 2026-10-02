@@ -12,7 +12,7 @@ from __future__ import annotations
 import asyncio
 import logging
 from dataclasses import dataclass
-from datetime import datetime, timedelta
+from datetime import datetime, time, timedelta
 
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
@@ -41,6 +41,7 @@ from .const import (
     DOMAIN,
     SCOPE_OWNER,
     SCOPE_SITE,
+    SITE_TIME_ZONE,
 )
 from .revenue import month_to_date_bounds
 
@@ -77,6 +78,16 @@ def _interval_power_w(result: GenerationResult) -> float | None:
     return round(kwh * 60000 / minutes, 1)
 
 
+def _site_day_start(timestamp: str | None) -> datetime | None:
+    """Midnight (site time) of the day containing an API timestamp."""
+    parsed = dt_util.parse_datetime(timestamp) if timestamp else None
+    if parsed is None:
+        return None
+    tz = dt_util.get_time_zone(SITE_TIME_ZONE)
+    local = parsed.astimezone(tz)
+    return datetime.combine(local.date(), time.min, tzinfo=tz)
+
+
 @dataclass(slots=True)
 class KirkhillData:
     """Merged snapshot returned by one coordinator refresh."""
@@ -92,6 +103,9 @@ class KirkhillData:
     owner_power_w: float | None
     site_power_w: float | None
     owner_today_kwh: float | None
+    # Start of the day `owner_today_kwh` covers, taken from the API's own clock
+    # so the daily reset can't race the data across midnight.
+    owner_today_since: datetime | None
     # Revenue inputs (price-independent; sensors apply the £/MWh price). None
     # when no price is configured or a revenue fetch failed transiently.
     price_gbp_per_mwh: float | None
@@ -160,7 +174,12 @@ class KirkhillCoordinator(DataUpdateCoordinator[KirkhillData]):
             # Validation / transport / unexpected status — retry next interval.
             raise UpdateFailed(str(err)) from err
 
-        owner_power_w, site_power_w, owner_today_kwh = await self._async_fetch_power()
+        (
+            owner_power_w,
+            site_power_w,
+            owner_today_kwh,
+            owner_today_since,
+        ) = await self._async_fetch_power()
 
         price = self._price
         mtd_kwh, ytd_series = await self._async_fetch_revenue(price)
@@ -176,6 +195,9 @@ class KirkhillCoordinator(DataUpdateCoordinator[KirkhillData]):
             owner_power_w=owner_power_w,
             site_power_w=site_power_w,
             owner_today_kwh=owner_today_kwh,
+            owner_today_since=owner_today_since
+            if owner_today_kwh is not None
+            else None,
             price_gbp_per_mwh=price,
             mtd_kwh=mtd_kwh,
             ytd_series=ytd_series,
@@ -183,8 +205,8 @@ class KirkhillCoordinator(DataUpdateCoordinator[KirkhillData]):
 
     async def _async_fetch_power(
         self,
-    ) -> tuple[float | None, float | None, float | None]:
-        """Live owner + site power (W) and owner generation-so-far-today (kWh).
+    ) -> tuple[float | None, float | None, float | None, datetime | None]:
+        """Live owner + site power (W), owner generation today (kWh) and its day.
 
         Reads `/current`. If that fails transiently, falls back to deriving the
         figures from the `range=today` generation series. Transient errors
@@ -204,6 +226,7 @@ class KirkhillCoordinator(DataUpdateCoordinator[KirkhillData]):
                 owner_now.summary.total_power_watts,
                 site_now.summary.total_power_watts,
                 owner_now.summary.total_generation_kwh_today,
+                _site_day_start(owner_now.generated_at),
             )
 
         try:
@@ -215,11 +238,12 @@ class KirkhillCoordinator(DataUpdateCoordinator[KirkhillData]):
             raise ConfigEntryAuthFailed(str(err)) from err
         except KirkhillError as err:
             _LOGGER.warning("Power fetch failed (power/today sensors unknown): %s", err)
-            return None, None, None
+            return None, None, None, None
         return (
             _interval_power_w(owner_gen),
             _interval_power_w(site_gen),
             owner_gen.summary.total_generation_kwh,
+            _site_day_start(owner_gen.window.from_),
         )
 
     async def _async_fetch_revenue(

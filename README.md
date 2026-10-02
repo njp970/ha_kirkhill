@@ -26,11 +26,20 @@ single cloud-polling coordinator.
 
 ### ⚠️ A note on the generation sensors
 
-Generation figures from this API are **windowed aggregates** (kWh summed over the
-selected range), not a monotonic meter. The value rises *and* falls as the window
-slides, so the generation sensors are modelled as `state_class: measurement` and
-**should not be added to the Energy Dashboard** (which assumes an ever-increasing
-total). Use the revenue sensors for earnings figures.
+Most generation figures from this API are **windowed aggregates** (kWh summed
+over the selected range), not a meter. The value rises *and* falls as the window
+slides, so the owner, site and per-turbine generation sensors are
+`state_class: measurement` with no energy device class, and **should not be
+added to the Energy Dashboard**. Use the revenue sensors for earnings figures.
+
+**Owner generation today** is different: it is a daily meter (an energy sensor
+with `state_class: total` that resets at midnight UK time), so it **can** be
+added to the Energy Dashboard as a source of your share of the farm's output.
+
+Upgrading from v0.3.0 or earlier: "Owner generation today" used to be a
+`measurement`. Home Assistant converts its long-term statistics to a running
+total at the next statistics run, with no repair needed; history before the
+upgrade keeps its old min/mean/max form.
 
 ## Installation
 
@@ -101,7 +110,7 @@ provide brand images this way and they take priority over the brands CDN — no
 ```bash
 uv venv --python 3.13 .venv
 VIRTUAL_ENV=.venv uv pip install -r requirements-test.txt
-.venv/bin/python -m pytest -q      # 71 tests
+.venv/bin/python -m pytest -q      # 76 tests
 uvx ruff check . && uvx ruff format --check .
 ```
 

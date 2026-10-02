@@ -35,13 +35,18 @@ from .entity import KirkhillEntity, site_device_info, turbine_device_info
 from .revenue import monthly_breakdown_from_series, revenue_gbp, ytd_total_gbp
 
 # IMPORTANT — generation modelling.
-# Generation values are WINDOWED AGGREGATES (kWh summed over the selected range),
-# NOT a monotonic meter reading. They rise AND fall as the window slides, so the
-# generation sensors use state_class MEASUREMENT (never TOTAL_INCREASING) and must
-# NOT be added to the Energy Dashboard, which assumes an ever-increasing total and
-# would mis-compute deltas. (The dedicated revenue sensors in Phase 2b are the
-# correct, separately-windowed earnings figures.)
-_GENERATION_STATE_CLASS = SensorStateClass.MEASUREMENT
+# Most generation values are WINDOWED AGGREGATES (kWh summed over the selected
+# range), NOT a meter reading: they rise AND fall as the window slides. HA allows
+# only TOTAL / TOTAL_INCREASING with the ENERGY device class, and neither fits a
+# sliding window, so these sensors have no device class and use MEASUREMENT.
+# Statistics still treat them as energy (HA infers that from the kWh unit), so
+# existing history carries on. They must NOT go in the Energy dashboard.
+#
+# "Generation today" is the exception: it is a real daily meter, so it is an
+# ENERGY / TOTAL sensor whose `last_reset` is the start of the site's day, and
+# it can be used in the Energy dashboard.
+_WINDOWED_STATE_CLASS = SensorStateClass.MEASUREMENT
+_WINDOWED_ENERGY_ICON = "mdi:wind-turbine"
 
 
 def _parse_ts(value: str | None) -> datetime | None:
@@ -53,6 +58,7 @@ class KirkhillSiteSensorDescription(SensorEntityDescription):
     """Site-level sensor description."""
 
     value_fn: Callable[[KirkhillData], StateType | datetime]
+    last_reset_fn: Callable[[KirkhillData], datetime | None] | None = None
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -66,9 +72,9 @@ SITE_SENSORS: tuple[KirkhillSiteSensorDescription, ...] = (
     KirkhillSiteSensorDescription(
         key="generation_owner",
         translation_key="generation_owner",
-        device_class=SensorDeviceClass.ENERGY,
+        icon=_WINDOWED_ENERGY_ICON,
         native_unit_of_measurement=UnitOfEnergy.KILO_WATT_HOUR,
-        state_class=_GENERATION_STATE_CLASS,  # windowed aggregate — see note above
+        state_class=_WINDOWED_STATE_CLASS,  # windowed aggregate — see note above
         value_fn=lambda d: d.summary_owner.total_generation_kwh,
     ),
     KirkhillSiteSensorDescription(
@@ -76,15 +82,16 @@ SITE_SENSORS: tuple[KirkhillSiteSensorDescription, ...] = (
         translation_key="generation_today",
         device_class=SensorDeviceClass.ENERGY,
         native_unit_of_measurement=UnitOfEnergy.KILO_WATT_HOUR,
-        state_class=_GENERATION_STATE_CLASS,  # windowed aggregate — see note above
+        state_class=SensorStateClass.TOTAL,  # daily meter — see note above
         value_fn=lambda d: d.owner_today_kwh,
+        last_reset_fn=lambda d: d.owner_today_since,
     ),
     KirkhillSiteSensorDescription(
         key="generation_site",
         translation_key="generation_site",
-        device_class=SensorDeviceClass.ENERGY,
+        icon=_WINDOWED_ENERGY_ICON,
         native_unit_of_measurement=UnitOfEnergy.KILO_WATT_HOUR,
-        state_class=_GENERATION_STATE_CLASS,  # windowed aggregate — see note above
+        state_class=_WINDOWED_STATE_CLASS,  # windowed aggregate — see note above
         value_fn=lambda d: d.summary_site.total_generation_kwh,
     ),
     KirkhillSiteSensorDescription(
@@ -92,7 +99,7 @@ SITE_SENSORS: tuple[KirkhillSiteSensorDescription, ...] = (
         translation_key="co2_avoided_owner",
         device_class=SensorDeviceClass.WEIGHT,
         native_unit_of_measurement=UnitOfMass.KILOGRAMS,
-        state_class=_GENERATION_STATE_CLASS,  # windowed aggregate — see note above
+        state_class=_WINDOWED_STATE_CLASS,  # windowed aggregate — see note above
         suggested_display_precision=1,
         value_fn=lambda d: d.summary_owner.co2_avoided_kg,
     ),
@@ -101,7 +108,7 @@ SITE_SENSORS: tuple[KirkhillSiteSensorDescription, ...] = (
         translation_key="co2_avoided_site",
         device_class=SensorDeviceClass.WEIGHT,
         native_unit_of_measurement=UnitOfMass.KILOGRAMS,
-        state_class=_GENERATION_STATE_CLASS,  # windowed aggregate — see note above
+        state_class=_WINDOWED_STATE_CLASS,  # windowed aggregate — see note above
         suggested_display_precision=0,
         value_fn=lambda d: d.summary_site.co2_avoided_kg,
     ),
@@ -173,9 +180,9 @@ TURBINE_SENSORS: tuple[KirkhillTurbineSensorDescription, ...] = (
     KirkhillTurbineSensorDescription(
         key="generation",
         translation_key="turbine_generation",
-        device_class=SensorDeviceClass.ENERGY,
+        icon=_WINDOWED_ENERGY_ICON,
         native_unit_of_measurement=UnitOfEnergy.KILO_WATT_HOUR,
-        state_class=_GENERATION_STATE_CLASS,  # windowed aggregate — see note above
+        state_class=_WINDOWED_STATE_CLASS,  # windowed aggregate — see note above
         value_fn=lambda t: t.generation_kwh,
     ),
     KirkhillTurbineSensorDescription(
@@ -245,6 +252,12 @@ class KirkhillSiteSensor(KirkhillEntity, SensorEntity):
     @property
     def native_value(self) -> StateType | datetime:
         return self.entity_description.value_fn(self.coordinator.data)
+
+    @property
+    def last_reset(self) -> datetime | None:
+        if self.entity_description.last_reset_fn is None:
+            return None
+        return self.entity_description.last_reset_fn(self.coordinator.data)
 
 
 class KirkhillTurbineSensor(KirkhillEntity, SensorEntity):

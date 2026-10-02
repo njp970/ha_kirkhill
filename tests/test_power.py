@@ -5,7 +5,7 @@ from __future__ import annotations
 import pytest
 
 from custom_components.kirkhill.api import GenerationResult, Summary, Window
-from custom_components.kirkhill.coordinator import _interval_power_w
+from custom_components.kirkhill.coordinator import _interval_power_w, _site_day_start
 
 
 def _result(bucket: str | None, kwh: float | None) -> GenerationResult:
@@ -41,3 +41,20 @@ def test_empty_series_or_null_value():
     empty = _result("1m", 1.0)
     empty.series.clear()
     assert _interval_power_w(empty) is None
+
+
+@pytest.mark.parametrize(
+    ("timestamp", "expected"),
+    [
+        # 23:59 BST on 2 Oct is still 2 Oct on site, though 22:59 UTC.
+        ("2026-10-02T22:59:00Z", "2026-10-02T00:00:00+01:00"),
+        # 00:01 BST on 3 Oct is 23:01 UTC on 2 Oct: a new site day.
+        ("2026-10-02T23:01:00Z", "2026-10-03T00:00:00+01:00"),
+        # In winter (GMT) site midnight is UTC midnight.
+        ("2026-12-10T08:00:00Z", "2026-12-10T00:00:00+00:00"),
+        (None, None),
+    ],
+)
+def test_site_day_start(timestamp, expected):
+    result = _site_day_start(timestamp)
+    assert (result.isoformat() if result else None) == expected

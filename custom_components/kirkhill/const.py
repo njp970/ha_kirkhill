@@ -19,6 +19,9 @@ ENDPOINT_WIND_SPEED = f"{API_PREFIX}/wind-speed"
 ENDPOINT_TURBINES = f"{API_PREFIX}/turbines"
 ENDPOINT_CURRENT = f"{API_PREFIX}/current"
 
+# The wind farm's local time zone; the API's "today" is a day in this zone.
+SITE_TIME_ZONE = "Europe/London"
+
 SCOPE_OWNER = "owner"
 SCOPE_SITE = "site"
 

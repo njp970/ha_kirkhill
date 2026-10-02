@@ -70,8 +70,10 @@ def _generation_result(name: str) -> GenerationResult:
 
 
 def _current_result(name: str) -> CurrentResult:
+    data = _load(name)["data"]
     return CurrentResult(
-        summary=CurrentSummary.from_dict(_load(name)["data"]["summary"])
+        summary=CurrentSummary.from_dict(data["summary"]),
+        generated_at=data["reading"]["generated_at"],
     )
 
 
