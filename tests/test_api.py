@@ -50,28 +50,49 @@ async def test_summary_owner_parsing(client, fixture):
         result = await client.async_get_summary()
 
     s = result.summary
-    assert s.total_generation_kwh == 7.041
-    assert s.capacity_factor_percent == 26.11
+    assert s.total_generation_kwh == 30.283
+    assert s.capacity_factor_percent == 60.09
     assert s.active_turbines == 8
-    assert s.site_capacity_watts == 18800000
-    assert s.latest_import_status == "running"
+    assert s.capacity_watts == 2383.086  # the owner's share of the site
+    assert s.co2_avoided_kg == 3.196
+    assert s.latest_import_status == "success"
     assert result.window.bucket == "1m"
     assert result.window.scope == "owner"
-    assert result.window.timezone == "Europe/London"
 
 
 async def test_missing_window_field_does_not_crash(client, fixture):
-    # Regression: the API dropped `window.timezone` in mid-2026. A missing field
-    # must degrade gracefully (None), never raise KeyError and kill the poll.
+    # Regression: the API has dropped window fields before (`timezone`, mid-2026).
+    # A missing field must degrade gracefully (None), never raise KeyError.
     payload = fixture("summary_owner.json")
-    del payload["data"]["window"]["timezone"]
+    del payload["data"]["window"]["bucket"]
     with aioresponses() as m:
         m.get(url_re("/api/v1/summary"), payload=payload)
         result = await client.async_get_summary()
 
-    assert result.window.timezone is None
-    assert result.window.bucket == "1m"
-    assert result.summary.total_generation_kwh == 7.041
+    assert result.window.bucket is None
+    assert result.summary.total_generation_kwh == 30.283
+
+
+async def test_legacy_site_capacity_key_still_parsed(client, fixture):
+    # Regression: `site_capacity_watts` was renamed `capacity_watts` in mid-2026.
+    payload = fixture("summary_site.json")
+    summary = payload["data"]["summary"]
+    summary["site_capacity_watts"] = summary.pop("capacity_watts")
+    with aioresponses() as m:
+        m.get(url_re("/api/v1/summary"), payload=payload)
+        result = await client.async_get_summary(scope="site")
+
+    assert result.summary.capacity_watts == 18800000
+
+
+async def test_current_parsing(client, fixture):
+    with aioresponses() as m:
+        m.get(url_re("/api/v1/current"), payload=fixture("current_site.json"))
+        result = await client.async_get_current(scope="site")
+
+    assert result.summary.total_power_watts == 15072000
+    assert result.summary.total_generation_kwh_today == 238897
+    assert result.summary.latest_power_at == "2026-10-02T20:09:00Z"
 
 
 async def test_summary_site_parsing(client, fixture):
@@ -79,7 +100,9 @@ async def test_summary_site_parsing(client, fixture):
         m.get(url_re("/api/v1/summary"), payload=fixture("summary_site.json"))
         result = await client.async_get_summary(scope="site")
 
-    assert result.summary.total_generation_kwh == 55544
+    assert result.summary.total_generation_kwh == 238897
+    assert result.summary.capacity_watts == 18800000
+    assert result.summary.co2_avoided_kg == 25209.85
     assert result.summary.latest_import_status == "success"
 
 

@@ -58,6 +58,8 @@
       "generation_owner": { "name": "Owner generation" },
       "generation_today": { "name": "Owner generation today" },
       "generation_site": { "name": "Site generation" },
+      "co2_avoided_owner": { "name": "Owner CO2 avoided" },
+      "co2_avoided_site": { "name": "Site CO2 avoided" },
       "owner_power": { "name": "Owner power" },
       "site_power": { "name": "Site power" },
       "capacity_factor": { "name": "Capacity factor" },

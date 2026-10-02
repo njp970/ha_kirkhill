@@ -45,6 +45,7 @@ ENDPOINTS = {
     "generation": f"{API_PREFIX}/generation",
     "wind-speed": f"{API_PREFIX}/wind-speed",
     "turbines": f"{API_PREFIX}/turbines",
+    "current": f"{API_PREFIX}/current",
 }
 
 # --- What the integration currently understands -----------------------------
@@ -52,14 +53,20 @@ ENDPOINTS = {
 # tests/test_probe_contract.py fails if they drift apart.
 
 ENVELOPE_KEYS = {"data"}
-WINDOW_KEYS = {"range", "from", "to", "bucket", "scope", "timezone"}
+WINDOW_KEYS = {"range", "from", "to", "bucket", "scope"}
 SUMMARY_KEYS = {
     "total_generation_kwh",
     "capacity_factor_percent",
     "active_turbines",
-    "site_capacity_watts",
+    "capacity_watts",
+    "co2_avoided_kg",
     "latest_generation_interval_end",
     "latest_import_status",
+}
+CURRENT_SUMMARY_KEYS = {
+    "total_power_watts",
+    "total_generation_kwh_today",
+    "latest_power_at",
 }
 TURBINE_KEYS = {
     "id",
@@ -81,24 +88,55 @@ DATA_KEYS = {
     "generation": {"window", "summary", "series"},
     "wind-speed": {"window", "series"},
     "turbines": {"window", "turbines"},
+    "current": {"reading", "summary", "turbines"},
+}
+
+# Fields seen and deliberately not read (duplicates in other units, or detail
+# with no sensor). Listed so they stop reporting as NEW on every run.
+IGNORED_KEYS = {
+    "summary": {
+        "capacity_kw",
+        "co2_avoided_assumed_export_factor",
+        "co2_avoided_complete",
+        "co2_avoided_coverage_percent",
+        "co2_avoided_expected_intervals",
+        "co2_avoided_matched_intervals",
+        "latest_carbon_intensity_at",
+    },
+    "current.summary": {
+        "total_power_kw",
+        "wind_speed_mps",
+        "capacity_factor_percent",
+        "active_turbines",
+        "inactive_turbines",
+        "unknown_turbines",
+        "total_turbines",
+        "capacity_watts",
+        "capacity_kw",
+        "latest_wind_speed_at",
+        "latest_status_at",
+        "total_generation_wh_today",
+    },
+    "turbines[]": {"capacity_kw", "capacity_watts"},
 }
 
 # Buckets coordinator._BUCKET_MINUTES can convert to an average power.
-KNOWN_BUCKETS = {"1m", "10m", "1h", "day"}
+KNOWN_BUCKETS = {"1m", "10m", "30m", "1h", "day"}
 
 # Ranges/scopes the integration uses, plus ones previously rejected — a
 # previously-invalid value that now returns 200 is a new API capability.
 KNOWN_RANGES = ["today", "7d", "30d"]
-CANDIDATE_RANGES = ["1h", "24h", "yesterday", "mtd", "ytd", "12m", "all"]
+CANDIDATE_RANGES = ["1h", "24h", "mtd", "12m"]
+# Accepted by the API but not offered in the options flow. Reported as info only.
+ACCEPTED_UNUSED_RANGES = ["yesterday", "ytd", "all"]
 KNOWN_SCOPES = ["owner", "site"]
 CANDIDATE_SCOPES = ["turbine", "all", "member"]
 
 # Documented at /api-docs but NOT wired into the integration. Probed so a run
 # keeps reporting them until they are either used or consciously dismissed.
-UNUSED_ENDPOINTS = {
-    "current": "live readings — would replace deriving power from the today series",
-    "carbon-avoided": "indicative CO2 avoided — no sensors for this at all",
-}
+# (`carbon-avoided` was dismissed: `/summary` carries the same `co2_avoided_kg`
+# for the same window, so the CO2 sensors need no extra request.)
+UNUSED_ENDPOINTS: dict[str, str] = {}
 
 # Endpoint names worth probing for; a non-404 means something new exists.
 CANDIDATE_ENDPOINTS = [
@@ -162,7 +200,8 @@ def call(path: str, token: str, **params: str) -> tuple[int, dict | str]:
 
 def diff(label: str, seen: set[str], known: set[str], findings: list[str]) -> None:
     """Record NEW/MISSING keys for one object against what we understand."""
-    for key in sorted(seen - known):
+    ignored = IGNORED_KEYS.get(label, IGNORED_KEYS.get(label.split(".", 1)[-1], set()))
+    for key in sorted(seen - known - ignored):
         findings.append(f"NEW      {label}.{key} — not read by the integration")
     for key in sorted(known - seen):
         findings.append(f"MISSING  {label}.{key} — API no longer returns it")
@@ -181,6 +220,17 @@ def check_shapes(token: str, findings: list[str]) -> None:
         diff("<envelope>", set(payload), ENVELOPE_KEYS, findings)
         data = payload.get("data", {})
         diff(f"{name}.data", set(data), DATA_KEYS[name], findings)
+
+        if name == "current":
+            # Only the live summary is read; per-turbine live data is not.
+            diff(
+                "current.summary",
+                set(data.get("summary", {})),
+                CURRENT_SUMMARY_KEYS,
+                findings,
+            )
+            print(f"  {name}: HTTP 200")
+            continue
 
         window = data.get("window", {})
         diff(f"{name}.window", set(window), WINDOW_KEYS, findings)
@@ -262,6 +312,11 @@ def _verdict(status: int) -> str:
 def check_extras(token: str, findings: list[str]) -> None:
     """Look for ranges, scopes and endpoints that did not previously exist."""
     print("\n== candidate ranges ==")
+    for rng in ACCEPTED_UNUSED_RANGES:
+        status, _ = call(ENDPOINTS["summary"], token, range=rng, scope="owner")
+        print(f"  range={rng}: {_verdict(status)} (known, not offered)")
+        if status != 200:
+            findings.append(f"MISSING  range={rng!r} is no longer accepted")
     for rng in CANDIDATE_RANGES:
         status, _ = call(ENDPOINTS["summary"], token, range=rng, scope="owner")
         print(f"  range={rng}: {_verdict(status)}")

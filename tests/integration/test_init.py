@@ -8,10 +8,10 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers import entity_registry as er
 
-from custom_components.kirkhill.api import KirkhillAuthError
+from custom_components.kirkhill.api import KirkhillApiError, KirkhillAuthError
 
-# 11 site sensors (incl. 2 power + today) + 2 revenue + (4*8 turbine) + 8 binary
-EXPECTED_ENTITIES = 11 + 2 + 32 + 8
+# 13 site sensors (incl. 2 power, today, 2 CO2) + 2 revenue + (4*8 turbine) + 8 binary
+EXPECTED_ENTITIES = 13 + 2 + 32 + 8
 # 1 site device + 8 turbine devices
 EXPECTED_DEVICES = 9
 
@@ -41,7 +41,7 @@ async def test_entity_values_and_modelling(
     # Owner generation value comes from the owner-scoped summary fixture.
     owner_gen = hass.states.get("sensor.kirk_hill_wind_farm_owner_generation")
     assert owner_gen is not None
-    assert float(owner_gen.state) == 7.041
+    assert float(owner_gen.state) == 30.283
     # CRITICAL: must be a measurement, never total_increasing.
     assert owner_gen.attributes["state_class"] == "measurement"
     assert owner_gen.attributes["device_class"] == "energy"
@@ -53,11 +53,36 @@ async def test_entity_values_and_modelling(
     assert t1.attributes["openstreetmap_node_id"] == 12134002376
     assert t1.attributes["latitude"] is not None
 
-    # Live power sensor: derived from today's latest interval, reported in W.
+    # Live power comes straight from /current, in W.
     power = hass.states.get("sensor.kirk_hill_wind_farm_owner_power")
     assert power is not None
     assert power.attributes["device_class"] == "power"
     assert power.attributes["unit_of_measurement"] == "W"
+    assert float(power.state) == 1910.525
+    site_power = hass.states.get("sensor.kirk_hill_wind_farm_site_power")
+    assert float(site_power.state) == 15072000
+    today = hass.states.get("sensor.kirk_hill_wind_farm_owner_generation_today")
+    assert float(today.state) == 30.283
+
+    co2 = hass.states.get("sensor.kirk_hill_wind_farm_owner_co2_avoided")
+    assert float(co2.state) == 3.196
+    assert co2.attributes["unit_of_measurement"] == "kg"
+    assert co2.attributes["state_class"] == "measurement"
+    site_co2 = hass.states.get("sensor.kirk_hill_wind_farm_site_co2_avoided")
+    assert float(site_co2.state) == 25209.85
+
+
+async def test_power_falls_back_to_today_series(
+    hass: HomeAssistant, mock_client, mock_entry
+) -> None:
+    """If /current fails transiently, power is derived from today's series."""
+    mock_client.async_get_current.side_effect = KirkhillApiError("503")
+    assert await hass.config_entries.async_setup(mock_entry.entry_id)
+    await hass.async_block_till_done()
+
+    assert mock_entry.state is ConfigEntryState.LOADED
+    power = hass.states.get("sensor.kirk_hill_wind_farm_owner_power")
+    assert power.state not in ("unknown", "unavailable")
     assert float(power.state) >= 0
 
 

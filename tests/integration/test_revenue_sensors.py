@@ -40,9 +40,9 @@ async def test_revenue_with_price(hass: HomeAssistant, mock_client) -> None:
     assert await hass.config_entries.async_setup(entry.entry_id)
     await hass.async_block_till_done()
 
-    # Owner MTD generation fixture = 7.041 kWh -> 7.041/1000 * 50 = 0.35.
+    # Owner MTD generation fixture = 30.283 kWh -> 30.283/1000 * 50 = 1.51.
     mtd = hass.states.get(MTD)
-    assert float(mtd.state) == 0.35
+    assert float(mtd.state) == 1.51
     assert mtd.attributes["device_class"] == "monetary"
     assert mtd.attributes["unit_of_measurement"] == "GBP"
     assert mtd.attributes["state_class"] == "total"

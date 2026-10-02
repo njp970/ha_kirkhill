@@ -24,6 +24,7 @@ import aiohttp
 from .const import (
     BASE_URL,
     DEFAULT_RANGE,
+    ENDPOINT_CURRENT,
     ENDPOINT_GENERATION,
     ENDPOINT_SUMMARY,
     ENDPOINT_TURBINES,
@@ -99,7 +100,6 @@ class Window:
     to: str | None
     bucket: str | None
     scope: str | None
-    timezone: str | None
 
     @classmethod
     def from_dict(cls, d: dict[str, Any]) -> Window:
@@ -109,7 +109,6 @@ class Window:
             to=d.get("to"),
             bucket=d.get("bucket"),
             scope=d.get("scope"),
-            timezone=d.get("timezone"),
         )
 
 
@@ -120,7 +119,10 @@ class Summary:
     total_generation_kwh: float | None
     capacity_factor_percent: float | None
     active_turbines: int | None
-    site_capacity_watts: int | None
+    # Capacity in scope: the whole site, or the owner's share of it.
+    capacity_watts: float | None
+    # Indicative CO2 avoided over the window, from grid carbon intensity.
+    co2_avoided_kg: float | None
     latest_generation_interval_end: str | None
     latest_import_status: str | None
 
@@ -132,7 +134,9 @@ class Summary:
             total_generation_kwh=d.get("total_generation_kwh"),
             capacity_factor_percent=d.get("capacity_factor_percent"),
             active_turbines=d.get("active_turbines"),
-            site_capacity_watts=d.get("site_capacity_watts"),
+            # Was `site_capacity_watts` until mid-2026; accept either.
+            capacity_watts=d.get("capacity_watts", d.get("site_capacity_watts")),
+            co2_avoided_kg=d.get("co2_avoided_kg"),
             latest_generation_interval_end=d.get("latest_generation_interval_end"),
             latest_import_status=d.get("latest_import_status"),
         )
@@ -193,6 +197,28 @@ class Turbine:
             latest_rotor_speed_at=d.get("latest_rotor_speed_at"),
             coordinates=Coordinates.from_dict(d.get("coordinates")),
         )
+
+
+@dataclass(slots=True)
+class CurrentSummary:
+    """The `summary` block of `/current`: live readings for one scope."""
+
+    total_power_watts: float | None
+    total_generation_kwh_today: float | None
+    latest_power_at: str | None
+
+    @classmethod
+    def from_dict(cls, d: dict[str, Any]) -> CurrentSummary:
+        return cls(
+            total_power_watts=d.get("total_power_watts"),
+            total_generation_kwh_today=d.get("total_generation_kwh_today"),
+            latest_power_at=d.get("latest_power_at"),
+        )
+
+
+@dataclass(slots=True)
+class CurrentResult:
+    summary: CurrentSummary
 
 
 @dataclass(slots=True)
@@ -370,6 +396,11 @@ class KirkhillClient:
             window=Window.from_dict(data.get("window", {})),
             series=data.get("series", []),
         )
+
+    async def async_get_current(self, scope: str = SCOPE_OWNER) -> CurrentResult:
+        """Live power and generation-so-far-today for one scope."""
+        data = await self._get(ENDPOINT_CURRENT, scope=scope)
+        return CurrentResult(summary=CurrentSummary.from_dict(data.get("summary", {})))
 
     async def async_get_turbines(
         self, scope: str = SCOPE_OWNER, *, range_: str | None = None

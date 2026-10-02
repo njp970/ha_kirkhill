@@ -12,6 +12,8 @@ import pytest
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from custom_components.kirkhill.api import (
+    CurrentResult,
+    CurrentSummary,
     GenerationResult,
     Summary,
     SummaryResult,
@@ -67,6 +69,12 @@ def _generation_result(name: str) -> GenerationResult:
     )
 
 
+def _current_result(name: str) -> CurrentResult:
+    return CurrentResult(
+        summary=CurrentSummary.from_dict(_load(name)["data"]["summary"])
+    )
+
+
 @pytest.fixture(autouse=True)
 def _enable_custom_integrations(enable_custom_integrations):
     """Allow loading the kirkhill custom component in tests."""
@@ -90,6 +98,13 @@ def mock_client() -> Generator[MagicMock]:
     client.async_get_wind_speed = AsyncMock(
         return_value=_wind_result("wind_speed.json")
     )
+    owner_now = _current_result("current_owner.json")
+    site_now = _current_result("current_site.json")
+
+    async def _get_current(scope: str = "owner") -> CurrentResult:
+        return site_now if scope == SCOPE_SITE else owner_now
+
+    client.async_get_current = AsyncMock(side_effect=_get_current)
     client.async_get_generation = AsyncMock(
         return_value=_generation_result("generation_owner.json")
     )

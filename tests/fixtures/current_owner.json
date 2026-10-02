@@ -1,0 +1,141 @@
+{
+    "data": {
+        "reading": {
+            "scope": "owner",
+            "source_interval": "1m",
+            "generated_at": "2026-10-02T20:25:54Z",
+            "complete": true
+        },
+        "summary": {
+            "total_power_kw": 1.911,
+            "total_power_watts": 1910.525,
+            "wind_speed_mps": 10.4,
+            "capacity_factor_percent": 80.17,
+            "active_turbines": 8,
+            "inactive_turbines": 0,
+            "unknown_turbines": 0,
+            "total_turbines": 8,
+            "capacity_watts": 2383.086,
+            "capacity_kw": 2.383086,
+            "latest_power_at": "2026-10-02T20:09:00Z",
+            "latest_wind_speed_at": "2026-10-02T20:09:00Z",
+            "latest_status_at": "2026-09-30T14:08:32Z",
+            "total_generation_kwh_today": 30.283,
+            "total_generation_wh_today": 30283
+        },
+        "turbines": [
+            {
+                "id": "T1",
+                "status": "active",
+                "power_kw": 0.298,
+                "wind_speed_mps": 12.6,
+                "capacity_factor_percent": 100.13,
+                "capacity_watts": 297.88575,
+                "capacity_kw": 0.2978857,
+                "latest_power_at": "2026-10-02T20:09:00Z",
+                "latest_wind_speed_at": "2026-10-02T20:09:00Z",
+                "status_started_at": "2026-09-30T14:02:01Z",
+                "state_started_at": "2026-09-30T14:08:32Z",
+                "state_text": "Turbine in operation"
+            },
+            {
+                "id": "T2",
+                "status": "active",
+                "power_kw": 0.298,
+                "wind_speed_mps": 12.2,
+                "capacity_factor_percent": 100.13,
+                "capacity_watts": 297.88575,
+                "capacity_kw": 0.2978857,
+                "latest_power_at": "2026-10-02T20:09:00Z",
+                "latest_wind_speed_at": "2026-10-02T20:09:00Z",
+                "status_started_at": "2026-09-23T23:37:34Z",
+                "state_started_at": "2026-09-23T23:39:29Z",
+                "state_text": "Turbine in operation"
+            },
+            {
+                "id": "T3",
+                "status": "active",
+                "power_kw": 0.269,
+                "wind_speed_mps": 10.9,
+                "capacity_factor_percent": 90.21,
+                "capacity_watts": 297.88575,
+                "capacity_kw": 0.2978857,
+                "latest_power_at": "2026-10-02T20:09:00Z",
+                "latest_wind_speed_at": "2026-10-02T20:09:00Z",
+                "status_started_at": "2026-09-23T23:18:05Z",
+                "state_started_at": "2026-09-23T23:20:27Z",
+                "state_text": "Turbine in operation"
+            },
+            {
+                "id": "T4",
+                "status": "active",
+                "power_kw": 0.253,
+                "wind_speed_mps": 10.6,
+                "capacity_factor_percent": 84.94,
+                "capacity_watts": 297.88575,
+                "capacity_kw": 0.2978857,
+                "latest_power_at": "2026-10-02T20:09:00Z",
+                "latest_wind_speed_at": "2026-10-02T20:09:00Z",
+                "status_started_at": "2026-09-23T23:22:11Z",
+                "state_started_at": "2026-09-23T23:24:23Z",
+                "state_text": "Turbine in operation"
+            },
+            {
+                "id": "T5",
+                "status": "active",
+                "power_kw": 0.104,
+                "wind_speed_mps": 7.6,
+                "capacity_factor_percent": 34.98,
+                "capacity_watts": 297.88575,
+                "capacity_kw": 0.2978857,
+                "latest_power_at": "2026-10-02T20:09:00Z",
+                "latest_wind_speed_at": "2026-10-02T20:09:00Z",
+                "status_started_at": "2026-09-25T06:17:10Z",
+                "state_started_at": "2026-09-25T06:21:03Z",
+                "state_text": "Turbine in operation"
+            },
+            {
+                "id": "T6",
+                "status": "active",
+                "power_kw": 0.231,
+                "wind_speed_mps": 9.6,
+                "capacity_factor_percent": 77.66,
+                "capacity_watts": 297.88575,
+                "capacity_kw": 0.2978857,
+                "latest_power_at": "2026-10-02T20:08:00Z",
+                "latest_wind_speed_at": "2026-10-02T20:08:00Z",
+                "status_started_at": "2026-09-23T23:23:06Z",
+                "state_started_at": "2026-09-23T23:25:15Z",
+                "state_text": "Turbine in operation"
+            },
+            {
+                "id": "T7",
+                "status": "active",
+                "power_kw": 0.205,
+                "wind_speed_mps": 9.6,
+                "capacity_factor_percent": 68.94,
+                "capacity_watts": 297.88575,
+                "capacity_kw": 0.2978857,
+                "latest_power_at": "2026-10-02T20:08:00Z",
+                "latest_wind_speed_at": "2026-10-02T20:08:00Z",
+                "status_started_at": "2026-09-23T23:21:33Z",
+                "state_started_at": "2026-09-23T23:23:38Z",
+                "state_text": "Turbine in operation"
+            },
+            {
+                "id": "T8",
+                "status": "active",
+                "power_kw": 0.251,
+                "wind_speed_mps": 10.1,
+                "capacity_factor_percent": 84.38,
+                "capacity_watts": 297.88575,
+                "capacity_kw": 0.2978857,
+                "latest_power_at": "2026-10-02T20:08:00Z",
+                "latest_wind_speed_at": "2026-10-02T20:08:00Z",
+                "status_started_at": "2026-09-23T23:21:36Z",
+                "state_started_at": "2026-09-23T23:23:46Z",
+                "state_text": "Turbine in operation"
+            }
+        ]
+    }
+}

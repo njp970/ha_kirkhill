@@ -19,6 +19,7 @@ from homeassistant.const import (
     REVOLUTIONS_PER_MINUTE,
     EntityCategory,
     UnitOfEnergy,
+    UnitOfMass,
     UnitOfPower,
     UnitOfSpeed,
 )
@@ -87,6 +88,24 @@ SITE_SENSORS: tuple[KirkhillSiteSensorDescription, ...] = (
         value_fn=lambda d: d.summary_site.total_generation_kwh,
     ),
     KirkhillSiteSensorDescription(
+        key="co2_avoided_owner",
+        translation_key="co2_avoided_owner",
+        device_class=SensorDeviceClass.WEIGHT,
+        native_unit_of_measurement=UnitOfMass.KILOGRAMS,
+        state_class=_GENERATION_STATE_CLASS,  # windowed aggregate — see note above
+        suggested_display_precision=1,
+        value_fn=lambda d: d.summary_owner.co2_avoided_kg,
+    ),
+    KirkhillSiteSensorDescription(
+        key="co2_avoided_site",
+        translation_key="co2_avoided_site",
+        device_class=SensorDeviceClass.WEIGHT,
+        native_unit_of_measurement=UnitOfMass.KILOGRAMS,
+        state_class=_GENERATION_STATE_CLASS,  # windowed aggregate — see note above
+        suggested_display_precision=0,
+        value_fn=lambda d: d.summary_site.co2_avoided_kg,
+    ),
+    KirkhillSiteSensorDescription(
         key="owner_power",
         translation_key="owner_power",
         device_class=SensorDeviceClass.POWER,
@@ -123,7 +142,7 @@ SITE_SENSORS: tuple[KirkhillSiteSensorDescription, ...] = (
         native_unit_of_measurement=UnitOfPower.WATT,
         entity_category=EntityCategory.DIAGNOSTIC,
         entity_registry_enabled_default=False,
-        value_fn=lambda d: d.summary_site.site_capacity_watts,
+        value_fn=lambda d: d.summary_site.capacity_watts,
     ),
     KirkhillSiteSensorDescription(
         key="import_status",

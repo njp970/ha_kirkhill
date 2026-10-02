@@ -18,6 +18,7 @@ import pytest
 
 from custom_components.kirkhill.api import (
     Coordinates,
+    CurrentSummary,
     GenerationPoint,
     Summary,
     Turbine,
@@ -53,6 +54,7 @@ def _dataclass_keys(cls) -> set[str]:
         ("SUMMARY_KEYS", Summary),
         ("TURBINE_KEYS", Turbine),
         ("COORDINATES_KEYS", Coordinates),
+        ("CURRENT_SUMMARY_KEYS", CurrentSummary),
     ],
 )
 def test_probe_keys_match_dataclass(probe, const_name, cls):
@@ -84,6 +86,7 @@ def test_probe_endpoints_match_const(probe):
         const.ENDPOINT_GENERATION,
         const.ENDPOINT_WIND_SPEED,
         const.ENDPOINT_TURBINES,
+        const.ENDPOINT_CURRENT,
     }
     assert set(probe.ENDPOINTS.values()) == integration_paths
 
@@ -98,6 +101,7 @@ def test_probe_known_ranges_match_options(probe):
 def test_candidate_values_are_not_already_known(probe):
     """A 'candidate' that is already supported would be reported as NEW forever."""
     assert not set(probe.CANDIDATE_RANGES) & set(probe.KNOWN_RANGES)
+    assert not set(probe.CANDIDATE_RANGES) & set(probe.ACCEPTED_UNUSED_RANGES)
     assert not set(probe.CANDIDATE_SCOPES) & set(probe.KNOWN_SCOPES)
     known_names = {p.rsplit("/", 1)[-1] for p in probe.ENDPOINTS.values()}
     assert not set(probe.CANDIDATE_ENDPOINTS) & known_names
@@ -139,3 +143,10 @@ def test_verdict_distinguishes_unreachable_from_rejected(probe):
     assert probe._verdict(0) == "unreachable (no response)"
     assert probe._verdict(200) == "accepted"
     assert "rejected" in probe._verdict(422)
+
+
+def test_ignored_keys_are_not_also_known(probe):
+    """A field can't be both read and deliberately ignored."""
+    assert not probe.IGNORED_KEYS["summary"] & probe.SUMMARY_KEYS
+    assert not probe.IGNORED_KEYS["current.summary"] & probe.CURRENT_SUMMARY_KEYS
+    assert not probe.IGNORED_KEYS["turbines[]"] & probe.TURBINE_KEYS

@@ -1,7 +1,8 @@
 """DataUpdateCoordinator for the Kirk Hill Wind Farm integration.
 
 One refresh fans out to a small set of cheap GETs (owner + site summary, owner
-turbines, wind-speed) and exposes a single merged snapshot to the entities. When
+turbines, wind-speed, owner + site live readings) and exposes a single merged
+snapshot to the entities. When
 a £/MWh price is configured it also fetches the owner-scoped month-to-date and
 year-to-date generation used by the revenue sensors (YTD is cached ~hourly).
 """
@@ -49,8 +50,9 @@ _LOGGER = logging.getLogger(__name__)
 YTD_REFRESH_INTERVAL = timedelta(hours=1)
 
 # Map a window bucket to its length in minutes, for turning the latest interval's
-# energy (kWh) into an average power (W) — the same trick the dashboard uses.
-_BUCKET_MINUTES = {"1m": 1, "10m": 10, "1h": 60, "day": 1440}
+# energy (kWh) into an average power (W). Only the fallback path uses this; live
+# power normally comes straight from `/current`.
+_BUCKET_MINUTES = {"1m": 1, "10m": 10, "30m": 30, "1h": 60, "day": 1440}
 
 
 def _retry_hint(err: KirkhillRateLimitError) -> str:
@@ -67,7 +69,11 @@ def _interval_power_w(result: GenerationResult) -> float | None:
     kwh = result.series[-1].get("generation_kwh")
     if kwh is None:
         return None
-    minutes = _BUCKET_MINUTES.get(result.window.bucket, 1)
+    # An unknown or missing bucket must not be guessed: assuming 1 minute would
+    # report a plausible but 10-1440x inflated power. Unknown beats wrong.
+    minutes = _BUCKET_MINUTES.get(result.window.bucket)
+    if minutes is None:
+        return None
     return round(kwh * 60000 / minutes, 1)
 
 
@@ -81,8 +87,8 @@ class KirkhillData:
     window: Window
     wind_speed_mps: float | None
     wind_speed_at: str | None
-    # Live power (W), derived from today's latest 1-minute interval, plus the
-    # owner's total generation so far today (kWh). None on a transient failure.
+    # Live power (W) plus the owner's total generation so far today (kWh), from
+    # `/current`. None on a transient failure.
     owner_power_w: float | None
     site_power_w: float | None
     owner_today_kwh: float | None
@@ -180,10 +186,26 @@ class KirkhillCoordinator(DataUpdateCoordinator[KirkhillData]):
     ) -> tuple[float | None, float | None, float | None]:
         """Live owner + site power (W) and owner generation-so-far-today (kWh).
 
-        Uses `range=today` (finest bucket) regardless of the display range so the
-        figures are always "now"/"today". Transient errors degrade to None; auth
-        errors propagate to reauth.
+        Reads `/current`. If that fails transiently, falls back to deriving the
+        figures from the `range=today` generation series. Transient errors
+        degrade to None; auth errors propagate to reauth.
         """
+        try:
+            owner_now, site_now = await asyncio.gather(
+                self.client.async_get_current(SCOPE_OWNER),
+                self.client.async_get_current(SCOPE_SITE),
+            )
+        except (KirkhillAuthError, KirkhillPasswordChangeRequired) as err:
+            raise ConfigEntryAuthFailed(str(err)) from err
+        except KirkhillError as err:
+            _LOGGER.debug("Live readings failed, using today's series: %s", err)
+        else:
+            return (
+                owner_now.summary.total_power_watts,
+                site_now.summary.total_power_watts,
+                owner_now.summary.total_generation_kwh_today,
+            )
+
         try:
             owner_gen, site_gen = await asyncio.gather(
                 self.client.async_get_generation(SCOPE_OWNER, range_="today"),

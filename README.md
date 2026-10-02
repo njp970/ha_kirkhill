@@ -12,9 +12,10 @@ single cloud-polling coordinator.
 
 ## Features
 
-- **Site device** with: owner generation, whole-site generation, capacity
-  factor, active turbines, site capacity, data-import status, wind speed, and a
-  "latest data interval" timestamp.
+- **Site device** with: owner generation, whole-site generation, live owner and
+  site power, owner generation today, CO₂ avoided (your share and whole-site),
+  capacity factor, active turbines, site capacity, data-import status, wind
+  speed, and a "latest data interval" timestamp.
 - **8 turbine devices**, each with generation, generation share, capacity factor
   and rotor-speed sensors, plus a **Running** binary sensor derived from rotor
   rpm (the API has no explicit status field). Each turbine's running sensor also
@@ -100,7 +101,7 @@ provide brand images this way and they take priority over the brands CDN — no
 ```bash
 uv venv --python 3.13 .venv
 VIRTUAL_ENV=.venv uv pip install -r requirements-test.txt
-.venv/bin/python -m pytest -q      # 58 tests
+.venv/bin/python -m pytest -q      # 71 tests
 uvx ruff check . && uvx ruff format --check .
 ```
 
@@ -121,12 +122,18 @@ It compares the live responses against the shapes in `api.py` and reports:
   these are the candidate features to wire up.
 - **UNUSED** endpoints that [the API docs](https://dashboard.kirkhillcoop.org/api-docs)
   document but the integration never calls, printed with their field shapes so
-  they can be modelled without guessing (currently `/current` and
-  `/carbon-avoided`).
+  they can be modelled without guessing (currently none: `/current` drives the
+  power sensors, and `/carbon-avoided` duplicates the CO₂ figure `/summary`
+  already returns).
 - **MISSING** fields the API no longer returns. Parsing is tolerant so these
   degrade to `unknown` rather than crashing, but the affected entities are dead.
-- The **bucket** each range resolves to. Any bucket missing from
-  `coordinator._BUCKET_MINUTES` makes the power sensors silently scale wrong.
+- The **bucket** each range resolves to. Power comes from `/current`; if that
+  fails, it is derived from the today series, and a bucket missing from
+  `coordinator._BUCKET_MINUTES` then leaves power `unknown` rather than wrong.
+
+Fields the integration deliberately doesn't read (duplicates in other units,
+or detail with no sensor) are listed in `IGNORED_KEYS` so they don't report as
+NEW on every run.
 
 It exits non-zero when it finds drift, so it can be run on a schedule.
 `tests/test_probe_contract.py` keeps the script's expectations tied to the real

@@ -2,19 +2,26 @@
     "data": {
         "window": {
             "range": "today",
-            "from": "2026-06-29T23:00:00Z",
-            "to": "2026-06-30T10:19:00Z",
+            "from": "2026-10-01T23:00:00Z",
+            "to": "2026-10-02T20:25:00Z",
             "bucket": "1m",
-            "scope": "owner",
-            "timezone": "Europe/London"
+            "scope": "owner"
         },
         "summary": {
-            "total_generation_kwh": 7.041,
-            "capacity_factor_percent": 26.11,
+            "total_generation_kwh": 30.283,
+            "co2_avoided_kg": 3.196,
+            "co2_avoided_assumed_export_factor": 0.99,
+            "co2_avoided_coverage_percent": 95.24,
+            "co2_avoided_matched_intervals": 40,
+            "co2_avoided_expected_intervals": 42,
+            "co2_avoided_complete": false,
+            "latest_carbon_intensity_at": "2026-10-02T19:00:00Z",
+            "capacity_factor_percent": 60.09,
             "active_turbines": 8,
-            "site_capacity_watts": 18800000,
-            "latest_generation_interval_end": "2026-06-30T10:04:00Z",
-            "latest_import_status": "running"
+            "capacity_watts": 2383.086,
+            "capacity_kw": 2.383086,
+            "latest_generation_interval_end": "2026-10-02T20:08:00Z",
+            "latest_import_status": "success"
         }
     }
 }
