@@ -32,6 +32,23 @@ async def test_setup_creates_entities_and_devices(
     assert len(devices) == EXPECTED_DEVICES
 
 
+async def test_turbines_link_to_site_device(
+    hass: HomeAssistant, mock_client, mock_entry
+) -> None:
+    assert await hass.config_entries.async_setup(mock_entry.entry_id)
+    await hass.async_block_till_done()
+
+    devices = dr.async_entries_for_config_entry(dr.async_get(hass), mock_entry.entry_id)
+    site_identifier = ("kirkhill", f"{mock_entry.entry_id}_site")
+    sites = [device for device in devices if site_identifier in device.identifiers]
+    assert len(sites) == 1
+    site = sites[0]
+    assert site.via_device_id is None
+    turbines = [device for device in devices if device.id != site.id]
+    assert len(turbines) == EXPECTED_DEVICES - 1
+    assert all(device.via_device_id == site.id for device in turbines)
+
+
 async def test_entity_values_and_modelling(
     hass: HomeAssistant, mock_client, mock_entry
 ) -> None:

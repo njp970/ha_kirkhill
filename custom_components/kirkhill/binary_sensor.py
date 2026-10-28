@@ -49,7 +49,9 @@ class KirkhillTurbineRunningSensor(KirkhillEntity, BinarySensorEntity):
         super().__init__(coordinator)
         self._turbine_id = turbine_id
         self._attr_unique_id = f"{entry_id}_{turbine_id}_running"
-        self._attr_device_info = turbine_device_info(entry_id, turbine_id)
+        self._attr_device_info = turbine_device_info(
+            entry_id, turbine_id, coordinator.site_device_id
+        )
 
     @property
     def available(self) -> bool:

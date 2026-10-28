@@ -133,6 +133,8 @@ class KirkhillCoordinator(DataUpdateCoordinator[KirkhillData]):
             update_interval=timedelta(minutes=scan_minutes),
         )
         self.client = client
+        # Set in async_setup_entry before the platforms are forwarded.
+        self.site_device_id: str | None = None
         self._ytd_series: list[GenerationPoint] | None = None
         self._ytd_fetched_at: datetime | None = None
         self._ytd_year: int | None = None

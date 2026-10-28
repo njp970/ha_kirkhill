@@ -108,7 +108,7 @@ provide brand images this way and they take priority over the brands CDN — no
 ## Development
 
 ```bash
-uv venv --python 3.13 .venv
+uv venv --python 3.14 .venv
 VIRTUAL_ENV=.venv uv pip install -r requirements-test.txt
 .venv/bin/python -m pytest -q      # 76 tests
 uvx ruff check . && uvx ruff format --check .

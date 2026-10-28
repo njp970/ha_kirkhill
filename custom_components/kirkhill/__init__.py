@@ -10,6 +10,7 @@ from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from .api import KirkhillClient
 from .const import CONF_API_KEY, CONF_RANGE, DEFAULT_RANGE
 from .coordinator import KirkhillCoordinator
+from .entity import async_register_site_device
 
 PLATFORMS: list[Platform] = [Platform.BINARY_SENSOR, Platform.SENSOR]
 
@@ -25,6 +26,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: KirkhillConfigEntry) -> 
     )
     coordinator = KirkhillCoordinator(hass, entry, client)
     await coordinator.async_config_entry_first_refresh()
+    coordinator.site_device_id = async_register_site_device(hass, entry)
 
     entry.runtime_data = coordinator
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
